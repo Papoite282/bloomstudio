@@ -1,0 +1,22 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+model ReelProject {
+  id         String   @id @default(cuid())
+  title      String
+  sourceType String   @default("MIXED")
+  mood       String   @default("SOFT")
+  status     String   @default("DRAFT")
+  format     String   @default("9:16")
+  hook       String?
+  caption    String?
+  hashtags   String?
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+}

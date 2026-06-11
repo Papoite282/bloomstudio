@@ -1,0 +1,57 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f5efe3;
+  --foreground: #23211e;
+  --bloom-cream: #f5efe3;
+  --bloom-porcelain: #fffaf2;
+  --bloom-clay: #b88a62;
+  --bloom-olive: #68745a;
+  --bloom-sage: #c4ccb6;
+  --bloom-ink: #23211e;
+  --bloom-blush: #d8aa99;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-bloom-cream: var(--bloom-cream);
+  --color-bloom-porcelain: var(--bloom-porcelain);
+  --color-bloom-clay: var(--bloom-clay);
+  --color-bloom-olive: var(--bloom-olive);
+  --color-bloom-sage: var(--bloom-sage);
+  --color-bloom-ink: var(--bloom-ink);
+  --color-bloom-blush: var(--bloom-blush);
+  --font-sans: var(--font-inter);
+  --font-serif: var(--font-cormorant);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html {
+  min-height: 100%;
+  background: var(--background);
+}
+
+body {
+  min-height: 100vh;
+  background:
+    linear-gradient(135deg, rgba(104, 116, 90, 0.1), transparent 34rem),
+    linear-gradient(225deg, rgba(216, 170, 153, 0.16), transparent 28rem),
+    var(--background);
+  color: var(--foreground);
+  font-family: var(--font-inter), Arial, sans-serif;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+::selection {
+  background: rgba(104, 116, 90, 0.25);
+}
