@@ -14,20 +14,38 @@ O produto organiza projetos, direção criativa, hooks, texto no ecrã, legendas
 - ESLint
 - Prettier
 
-## Como correr localmente
+## Comandos locais
 
 ```bash
 npm install
 npx prisma migrate dev
+npx prisma db seed
 npm run dev
 ```
 
 A aplicação fica disponível em `http://localhost:3000`.
 
-## Base de dados
+## Base de Dados
 
-O projeto usa SQLite em desenvolvimento. A base local fica em `prisma/dev.db`
-e é criada automaticamente durante `npm install` caso ainda não exista.
+O projeto usa SQLite em desenvolvimento. A base local fica em `prisma/dev.db` e é criada automaticamente durante `npm install` caso ainda não exista.
+
+Para aplicar migrations:
+
+```bash
+npx prisma migrate dev
+```
+
+Para executar o seed inicial:
+
+```bash
+npx prisma db seed
+```
+
+Para abrir o Prisma Studio:
+
+```bash
+npx prisma studio
+```
 
 ## Repositório
 

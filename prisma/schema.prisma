@@ -7,16 +7,71 @@ datasource db {
   url      = "file:./dev.db"
 }
 
+model BrandProfile {
+  id          String   @id @default(cuid())
+  name        String
+  description String
+  tone        String
+  colors      String?
+  audience    String?
+  language    String   @default("pt")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
 model ReelProject {
-  id         String   @id @default(cuid())
-  title      String
-  sourceType String   @default("MIXED")
-  mood       String   @default("SOFT")
-  status     String   @default("DRAFT")
-  format     String   @default("9:16")
-  hook       String?
-  caption    String?
-  hashtags   String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id          String       @id @default(cuid())
+  title       String
+  objective   String
+  style       String
+  template    String?
+  duration    Int          @default(15)
+  language    String       @default("pt")
+  status      String       @default("draft")
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  mediaAssets MediaAsset[]
+  script      ReelScript?
+  exports     ReelExport[]
+}
+
+model MediaAsset {
+  id            String      @id @default(cuid())
+  reelProjectId String
+  reelProject   ReelProject @relation(fields: [reelProjectId], references: [id], onDelete: Cascade)
+  type          String
+  originalName  String
+  path          String
+  width         Int?
+  height        Int?
+  duration      Float?
+  order         Int         @default(0)
+  createdAt     DateTime    @default(now())
+
+  @@index([reelProjectId])
+}
+
+model ReelScript {
+  id              String      @id @default(cuid())
+  reelProjectId   String      @unique
+  reelProject     ReelProject @relation(fields: [reelProjectId], references: [id], onDelete: Cascade)
+  hook            String
+  caption         String
+  hashtags        String
+  audioSuggestion String?
+  scenesJson      String
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+}
+
+model ReelExport {
+  id            String      @id @default(cuid())
+  reelProjectId String
+  reelProject   ReelProject @relation(fields: [reelProjectId], references: [id], onDelete: Cascade)
+  path          String
+  duration      Int?
+  resolution    String      @default("1080x1920")
+  createdAt     DateTime    @default(now())
+
+  @@index([reelProjectId])
 }
