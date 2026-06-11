@@ -52,16 +52,18 @@ model MediaAsset {
 }
 
 model ReelScript {
-  id              String      @id @default(cuid())
-  reelProjectId   String      @unique
-  reelProject     ReelProject @relation(fields: [reelProjectId], references: [id], onDelete: Cascade)
-  hook            String
-  caption         String
-  hashtags        String
-  audioSuggestion String?
-  scenesJson      String
-  createdAt       DateTime    @default(now())
-  updatedAt       DateTime    @updatedAt
+  id               String      @id @default(cuid())
+  reelProjectId    String      @unique
+  reelProject      ReelProject @relation(fields: [reelProjectId], references: [id], onDelete: Cascade)
+  title            String?
+  hook             String
+  caption          String
+  hashtags         String
+  audioSuggestion  String?
+  scenesJson       String
+  generationSource String      @default("local")
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
 }
 
 model ReelExport {

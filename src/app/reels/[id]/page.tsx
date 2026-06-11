@@ -1,18 +1,16 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import {
-  ArrowLeft,
-  CalendarDays,
-  Clapperboard,
-  Film,
-  ImageIcon,
-  Sparkles,
-} from "lucide-react";
+import { ArrowLeft, CalendarDays, Film, ImageIcon } from "lucide-react";
+import type { ReelScript } from "@prisma/client";
 
+import {
+  ScriptGenerationPanel,
+  type StoredReelScript,
+} from "@/components/reels/script-generation-panel";
 import { Badge } from "@/components/ui/badge";
-import { buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
+import { reelSceneSchema } from "@/lib/schemas/reelScriptSchema";
 
 type ReelDetailsPageProps = {
   params: Promise<{ id: string }>;
@@ -62,40 +60,19 @@ export default async function ReelDetailsPage({
           Voltar aos reels
         </Link>
 
-        <div className="mt-5 flex flex-col justify-between gap-5 xl:flex-row xl:items-end">
-          <div className="max-w-3xl space-y-3">
-            <div className="flex flex-wrap items-center gap-2">
-              <Badge variant="olive">{project.status}</Badge>
-              <span className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
-                {formatDate(project.createdAt)}
-              </span>
-            </div>
-            <h1 className="font-serif text-5xl leading-tight text-bloom-ink">
-              {project.title}
-            </h1>
-            <p className="text-base leading-7 text-bloom-ink/62">
-              {project.objective}
-            </p>
+        <div className="mt-5 max-w-3xl space-y-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <Badge variant="olive">{project.status}</Badge>
+            <span className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
+              {formatDate(project.createdAt)}
+            </span>
           </div>
-
-          <div className="flex flex-wrap gap-3">
-            <button
-              disabled
-              className={buttonStyles({ variant: "secondary" })}
-              title="Disponível numa fase futura"
-            >
-              <Sparkles aria-hidden className="h-4 w-4" />
-              Gerar roteiro com IA
-            </button>
-            <button
-              disabled
-              className={buttonStyles({ variant: "secondary" })}
-              title="Disponível numa fase futura"
-            >
-              <Clapperboard aria-hidden className="h-4 w-4" />
-              Gerar vídeo
-            </button>
-          </div>
+          <h1 className="font-serif text-5xl leading-tight text-bloom-ink">
+            {project.title}
+          </h1>
+          <p className="text-base leading-7 text-bloom-ink/62">
+            {project.objective}
+          </p>
         </div>
       </section>
 
@@ -105,6 +82,11 @@ export default async function ReelDetailsPage({
         <Metric label="Duração" value={`${project.duration}s`} />
         <Metric label="Idioma" value={project.language.toUpperCase()} />
       </section>
+
+      <ScriptGenerationPanel
+        projectId={project.id}
+        initialScript={serializeScript(project.script)}
+      />
 
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         <div className="space-y-4">
@@ -186,7 +168,7 @@ export default async function ReelDetailsPage({
               <p>
                 {project.script
                   ? "Este projeto já tem roteiro guardado."
-                  : "O roteiro será preparado numa fase futura."}
+                  : "O roteiro ainda não foi gerado."}
               </p>
               <p>
                 {project.exports.length === 0
@@ -210,6 +192,46 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-sm font-medium text-bloom-ink">{value}</p>
     </Card>
   );
+}
+
+function serializeScript(script: ReelScript | null): StoredReelScript | null {
+  if (!script) {
+    return null;
+  }
+
+  return {
+    id: script.id,
+    title: script.title ?? "Roteiro sugerido",
+    hook: script.hook,
+    scenes: parseScenes(script.scenesJson),
+    caption: script.caption,
+    hashtags: parseHashtags(script.hashtags),
+    audioSuggestion: script.audioSuggestion,
+    generationSource: script.generationSource === "ai" ? "ai" : "local",
+  };
+}
+
+function parseScenes(value: string) {
+  const parsed = safeJsonParse(value);
+  const scenes = reelSceneSchema.array().safeParse(parsed);
+
+  return scenes.success ? scenes.data : [];
+}
+
+function parseHashtags(value: string) {
+  const parsed = safeJsonParse(value);
+
+  return Array.isArray(parsed)
+    ? parsed.filter((item): item is string => typeof item === "string")
+    : [];
+}
+
+function safeJsonParse(value: string) {
+  try {
+    return JSON.parse(value);
+  } catch {
+    return null;
+  }
 }
 
 function formatDate(date: Date) {

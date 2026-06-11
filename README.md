@@ -25,6 +25,21 @@ npm run dev
 
 A aplicação fica disponível em `http://localhost:3000`.
 
+## Configuração de IA
+
+BloomStudio pode gerar roteiros de reels com uma API externa ou, se não houver chave configurada, com um fallback local.
+
+Cria um ficheiro `.env` a partir de `.env.example`:
+
+```env
+OPENAI_API_KEY=
+OPENAI_MODEL=gpt-5.5
+```
+
+`OPENAI_API_KEY` é opcional. Sem essa chave, a aplicação continua a funcionar e gera roteiros localmente com base no projeto, template, estilo, idioma, duração e assets.
+
+A chave fica apenas no backend, não é enviada para o frontend e não é guardada na base de dados.
+
 ## Criar um projeto de reel
 
 1. Abre `http://localhost:3000/reels/new`.
@@ -32,6 +47,7 @@ A aplicação fica disponível em `http://localhost:3000`.
 3. Seleciona uma ou várias imagens ou vídeos.
 4. Confirma os previews dos ficheiros.
 5. Cria o projeto para abrir automaticamente a página de detalhe do reel.
+6. Na página do projeto, usa `Gerar roteiro com IA` para criar hook, cenas, legenda, hashtags e sugestão de áudio.
 
 ## Base de Dados
 
