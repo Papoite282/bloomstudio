@@ -38,6 +38,11 @@ dev-server.*.log
 /prisma/dev.db
 /prisma/dev.db-*
 
+# local media storage
+/storage/uploads/*
+/storage/exports/*
+!/storage/.gitkeep
+
 # generated prisma client
 /src/generated/prisma/
 

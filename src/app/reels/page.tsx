@@ -1,17 +1,33 @@
 import Link from "next/link";
-import { ArrowRight, Clock3, Layers3, Plus } from "lucide-react";
+import {
+  ArrowRight,
+  CalendarDays,
+  Clapperboard,
+  Layers3,
+  Plus,
+} from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Select } from "@/components/ui/select";
-import { reelProjects } from "@/lib/reel-projects";
+import { prisma } from "@/lib/prisma";
 
 export const metadata = {
   title: "Reels",
 };
 
-export default function ReelsPage() {
+export const dynamic = "force-dynamic";
+
+export default async function ReelsPage() {
+  const projects = await prisma.reelProject.findMany({
+    orderBy: { createdAt: "desc" },
+    include: {
+      _count: {
+        select: { mediaAssets: true },
+      },
+    },
+  });
+
   return (
     <div className="space-y-8">
       <section className="flex flex-col justify-between gap-5 border-b border-bloom-olive/15 pb-6 md:flex-row md:items-end">
@@ -35,73 +51,93 @@ export default function ReelsPage() {
         </Link>
       </section>
 
-      <section className="grid gap-3 md:grid-cols-[1fr_220px_220px]">
-        <div className="rounded-lg border border-bloom-olive/15 bg-bloom-porcelain/72 px-4 py-3 text-sm text-bloom-ink/58">
-          {reelProjects.length} projetos guardados
-        </div>
-        <Select aria-label="Filtrar por estado" defaultValue="all">
-          <option value="all">Todos os estados</option>
-          <option value="draft">Rascunhos</option>
-          <option value="planned">Planeados</option>
-          <option value="ready">Prontos</option>
-        </Select>
-        <Select aria-label="Ordenar projetos" defaultValue="updated">
-          <option value="updated">Atualizados recentemente</option>
-          <option value="duration">Duração</option>
-          <option value="mood">Mood</option>
-        </Select>
+      <section className="rounded-lg border border-bloom-olive/15 bg-bloom-porcelain/72 px-4 py-3 text-sm text-bloom-ink/58">
+        {projects.length === 1
+          ? "1 projeto guardado"
+          : `${projects.length} projetos guardados`}
       </section>
 
-      <section className="grid gap-4 xl:grid-cols-2">
-        {reelProjects.map((project) => (
-          <Card key={project.id} className="p-5">
-            <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={project.badgeVariant}>
-                    {project.statusLabel}
-                  </Badge>
-                  <span className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
-                    {project.updatedAt}
-                  </span>
+      {projects.length === 0 ? (
+        <Card className="flex min-h-80 flex-col items-center justify-center p-8 text-center">
+          <div className="flex h-14 w-14 items-center justify-center rounded-lg bg-bloom-sage text-bloom-ink">
+            <Clapperboard aria-hidden className="h-6 w-6" />
+          </div>
+          <h2 className="mt-5 font-serif text-4xl text-bloom-ink">
+            Ainda não há reels criados
+          </h2>
+          <p className="mt-3 max-w-md text-sm leading-6 text-bloom-ink/62">
+            Começa por criar um projeto com fotos ou vídeos da arte. Depois
+            podes organizar os assets, preparar roteiro e exportar o reel.
+          </p>
+          <Link
+            href="/reels/new"
+            className={buttonStyles({ className: "mt-6", variant: "primary" })}
+          >
+            Criar primeiro reel
+            <ArrowRight aria-hidden className="h-4 w-4" />
+          </Link>
+        </Card>
+      ) : (
+        <section className="grid gap-4 xl:grid-cols-2">
+          {projects.map((project) => (
+            <Card key={project.id} className="p-5">
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-4">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="olive">{project.status}</Badge>
+                    <span className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
+                      {formatDate(project.createdAt)}
+                    </span>
+                  </div>
+
+                  <div>
+                    <h2 className="font-serif text-3xl leading-tight text-bloom-ink">
+                      {project.title}
+                    </h2>
+                    <p className="mt-2 max-w-xl text-sm leading-6 text-bloom-ink/62">
+                      {project.objective}
+                    </p>
+                  </div>
                 </div>
 
-                <div>
-                  <h2 className="font-serif text-3xl leading-tight text-bloom-ink">
-                    {project.title}
-                  </h2>
-                  <p className="mt-2 max-w-xl text-sm leading-6 text-bloom-ink/62">
-                    {project.hook}
-                  </p>
+                <Link
+                  href={`/reels/${project.id}`}
+                  aria-label={`Abrir ${project.title}`}
+                  title={`Abrir ${project.title}`}
+                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-bloom-olive/20 text-bloom-ink transition hover:bg-bloom-sage/35"
+                >
+                  <ArrowRight aria-hidden className="h-4 w-4" />
+                </Link>
+              </div>
+
+              <div className="mt-6 grid gap-3 sm:grid-cols-3">
+                <div className="flex items-center gap-2 rounded-lg bg-bloom-cream/70 px-3 py-2 text-sm text-bloom-ink/62">
+                  <Layers3 aria-hidden className="h-4 w-4 text-bloom-olive" />
+                  {project.style}
+                </div>
+                <div className="rounded-lg bg-bloom-cream/70 px-3 py-2 text-sm text-bloom-ink/62">
+                  {project.template ?? "Sem template"}
+                </div>
+                <div className="flex items-center gap-2 rounded-lg bg-bloom-cream/70 px-3 py-2 text-sm text-bloom-ink/62">
+                  <CalendarDays
+                    aria-hidden
+                    className="h-4 w-4 text-bloom-olive"
+                  />
+                  {project._count.mediaAssets} assets
                 </div>
               </div>
-
-              <Link
-                href="/reels/new"
-                aria-label={`Abrir ${project.title}`}
-                title={`Abrir ${project.title}`}
-                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md border border-bloom-olive/20 text-bloom-ink transition hover:bg-bloom-sage/35"
-              >
-                <ArrowRight aria-hidden className="h-4 w-4" />
-              </Link>
-            </div>
-
-            <div className="mt-6 grid gap-3 sm:grid-cols-3">
-              <div className="flex items-center gap-2 rounded-lg bg-bloom-cream/70 px-3 py-2 text-sm text-bloom-ink/62">
-                <Layers3 aria-hidden className="h-4 w-4 text-bloom-olive" />
-                {project.source}
-              </div>
-              <div className="flex items-center gap-2 rounded-lg bg-bloom-cream/70 px-3 py-2 text-sm text-bloom-ink/62">
-                <Clock3 aria-hidden className="h-4 w-4 text-bloom-olive" />
-                {project.duration}
-              </div>
-              <div className="rounded-lg bg-bloom-cream/70 px-3 py-2 text-sm text-bloom-ink/62">
-                {project.mood}
-              </div>
-            </div>
-          </Card>
-        ))}
-      </section>
+            </Card>
+          ))}
+        </section>
+      )}
     </div>
   );
+}
+
+function formatDate(date: Date) {
+  return new Intl.DateTimeFormat("pt-PT", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  }).format(date);
 }

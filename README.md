@@ -25,6 +25,14 @@ npm run dev
 
 A aplicação fica disponível em `http://localhost:3000`.
 
+## Criar um projeto de reel
+
+1. Abre `http://localhost:3000/reels/new`.
+2. Preenche o título, objetivo, estilo visual, template, duração e idioma.
+3. Seleciona uma ou várias imagens ou vídeos.
+4. Confirma os previews dos ficheiros.
+5. Cria o projeto para abrir automaticamente a página de detalhe do reel.
+
 ## Base de Dados
 
 O projeto usa SQLite em desenvolvimento. A base local fica em `prisma/dev.db` e é criada automaticamente durante `npm install` caso ainda não exista.
@@ -46,6 +54,26 @@ Para abrir o Prisma Studio:
 ```bash
 npx prisma studio
 ```
+
+## Uploads Locais
+
+Os ficheiros carregados ficam guardados localmente em `storage/uploads/{reelProjectId}/`.
+
+Formatos aceites:
+
+- `jpg`
+- `jpeg`
+- `png`
+- `webp`
+- `mp4`
+- `mov`
+
+Limites:
+
+- imagens até 15 MB
+- vídeos até 200 MB
+
+Os ficheiros são mantidos apenas no ambiente local e não são enviados para cloud.
 
 ## Repositório
 
