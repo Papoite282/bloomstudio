@@ -1,5 +1,7 @@
-import type { MediaAsset, ReelProject } from "@prisma/client";
+import type { BrandProfile, MediaAsset, ReelProject } from "@prisma/client";
 
+import { getWordsToAvoid } from "@/lib/brand-profile";
+import { getTemplateByName } from "@/lib/reel-templates";
 import type { ReelScriptOutput } from "@/lib/schemas/reelScriptSchema";
 
 const motions = [
@@ -11,25 +13,35 @@ const motions = [
 ] as const;
 
 export function createFallbackReelScript({
+  brandProfile,
   project,
   mediaAssets,
 }: {
+  brandProfile: BrandProfile;
   project: ReelProject;
   mediaAssets: MediaAsset[];
 }): ReelScriptOutput {
+  const template = getTemplateByName(project.template);
   const assetCount = Math.max(mediaAssets.length, 1);
-  const sceneCount = Math.min(Math.max(assetCount, 3), 5);
+  const sceneCount = Math.min(
+    Math.max(assetCount, template.sceneStructure.length, 3),
+    5,
+  );
   const baseDuration = Math.max(1, Math.floor(project.duration / sceneCount));
-  const isEnglish = project.language === "en";
-  const template = project.template ?? "Soft Art Reveal";
+  const isEnglish = project.language === "en" || brandProfile.language === "en";
+  const wordsToAvoid = getWordsToAvoid(brandProfile);
+  const brandName = brandProfile.name || "Bloommere";
 
   return {
     title: isEnglish
-      ? `${project.title} - soft reel script`
-      : `${project.title} - roteiro suave`,
-    hook: isEnglish
-      ? englishHook(project.objective, template)
-      : portugueseHook(project.objective, template),
+      ? `${project.title} - ${template.name.toLowerCase()}`
+      : `${project.title} - ${template.name}`,
+    hook: sanitizeCopy(
+      isEnglish
+        ? englishHook(project.objective, template.name, brandName)
+        : portugueseHook(project.objective, template.name, brandName),
+      wordsToAvoid,
+    ),
     scenes: Array.from({ length: sceneCount }, (_, index) => {
       const isLastScene = index === sceneCount - 1;
       const duration = isLastScene
@@ -41,18 +53,32 @@ export function createFallbackReelScript({
         order: index + 1,
         duration,
         assetIndex,
-        onScreenText: isEnglish
-          ? englishOnScreenText(index, sceneCount, project.style)
-          : portugueseOnScreenText(index, sceneCount, project.style),
-        motion: motions[index % motions.length],
+        onScreenText: sanitizeCopy(
+          isEnglish
+            ? englishOnScreenText(index, sceneCount, project.style, template)
+            : portugueseOnScreenText(
+                index,
+                sceneCount,
+                project.style,
+                template,
+              ),
+          wordsToAvoid,
+        ),
+        motion:
+          index === 0
+            ? template.defaultMotion
+            : motions[index % motions.length],
         notes: isEnglish
-          ? englishSceneNote(index, sceneCount, project.objective)
-          : portugueseSceneNote(index, sceneCount, project.objective),
+          ? englishSceneNote(index, sceneCount, project.objective, template)
+          : portugueseSceneNote(index, sceneCount, project.objective, template),
       };
     }),
-    caption: isEnglish
-      ? `A quiet look at ${project.title.toLowerCase()} - small textures, calm details and a soft moment from the studio.`
-      : `Um olhar calmo sobre ${project.title.toLowerCase()}: textura, detalhe e um bocadinho do processo no atelier.`,
+    caption: sanitizeCopy(
+      isEnglish
+        ? `A quiet look at ${project.title.toLowerCase()} - ${template.suggestedCTA.toLowerCase()}`
+        : `Um olhar calmo sobre ${project.title.toLowerCase()}. ${template.suggestedCTA}`,
+      wordsToAvoid,
+    ),
     hashtags: isEnglish
       ? [
           "#botanicalart",
@@ -74,12 +100,16 @@ export function createFallbackReelScript({
   };
 }
 
-function portugueseHook(objective: string, template: string) {
-  if (objective.includes("Etsy")) {
-    return "Um print calmo para trazer natureza à parede.";
+function portugueseHook(
+  objective: string,
+  template: string,
+  brandName: string,
+) {
+  if (objective.includes("Etsy") || template.includes("Etsy")) {
+    return `Um print ${brandName} para trazer natureza a uma parede calma.`;
   }
 
-  if (objective.includes("Sketchbook")) {
+  if (objective.includes("Sketchbook") || template.includes("Sketchbook")) {
     return "Pequenos detalhes do sketchbook, guardados devagar.";
   }
 
@@ -90,12 +120,12 @@ function portugueseHook(objective: string, template: string) {
   return "Um detalhe pequeno antes da obra completa.";
 }
 
-function englishHook(objective: string, template: string) {
-  if (objective.includes("Etsy")) {
-    return "A quiet print for a softer wall.";
+function englishHook(objective: string, template: string, brandName: string) {
+  if (objective.includes("Etsy") || template.includes("Etsy")) {
+    return `A quiet ${brandName} print for a softer wall.`;
   }
 
-  if (objective.includes("Sketchbook")) {
+  if (objective.includes("Sketchbook") || template.includes("Sketchbook")) {
     return "Small sketchbook moments, gathered slowly.";
   }
 
@@ -106,33 +136,58 @@ function englishHook(objective: string, template: string) {
   return "A small detail before the full artwork appears.";
 }
 
-function portugueseOnScreenText(index: number, total: number, style: string) {
+function portugueseOnScreenText(
+  index: number,
+  total: number,
+  style: string,
+  template: ReturnType<typeof getTemplateByName>,
+) {
+  const structure = template.sceneStructure[index];
   const text = [
     "começa pelo detalhe",
     `um ritmo ${style.toLowerCase()}`,
     "textura e luz natural",
     "a peça começa a respirar",
-    "guarda para rever com calma",
+    template.suggestedCTA,
   ];
+
+  if (structure) {
+    return structure.toLowerCase();
+  }
 
   return index === total - 1 ? text[4] : (text[index] ?? text[1]);
 }
 
-function englishOnScreenText(index: number, total: number, style: string) {
+function englishOnScreenText(
+  index: number,
+  total: number,
+  style: string,
+  template: ReturnType<typeof getTemplateByName>,
+) {
+  const structure = template.sceneStructure[index];
   const text = [
     "start with the detail",
     `a ${style.toLowerCase()} rhythm`,
     "texture and natural light",
     "the piece begins to breathe",
-    "save this quiet moment",
+    template.suggestedCTA,
   ];
+
+  if (structure) {
+    return structure.toLowerCase();
+  }
 
   return index === total - 1 ? text[4] : (text[index] ?? text[1]);
 }
 
-function portugueseSceneNote(index: number, total: number, objective: string) {
+function portugueseSceneNote(
+  index: number,
+  total: number,
+  objective: string,
+  template: ReturnType<typeof getTemplateByName>,
+) {
   if (index === 0) {
-    return "Abrir com uma aproximação suave ao detalhe mais delicado.";
+    return `Abrir com ${template.sceneStructure[0]?.toLowerCase() ?? "um detalhe delicado"}.`;
   }
 
   if (index === total - 1) {
@@ -142,9 +197,14 @@ function portugueseSceneNote(index: number, total: number, objective: string) {
   return "Manter cortes lentos e deixar a textura conduzir a narrativa.";
 }
 
-function englishSceneNote(index: number, total: number, objective: string) {
+function englishSceneNote(
+  index: number,
+  total: number,
+  objective: string,
+  template: ReturnType<typeof getTemplateByName>,
+) {
   if (index === 0) {
-    return "Open with a soft close-up of the most delicate detail.";
+    return `Open with ${template.sceneStructure[0]?.toLowerCase() ?? "a delicate detail"}.`;
   }
 
   if (index === total - 1) {
@@ -152,4 +212,14 @@ function englishSceneNote(index: number, total: number, objective: string) {
   }
 
   return "Keep the cuts gentle and let texture guide the story.";
+}
+
+function sanitizeCopy(value: string, wordsToAvoid: string[]) {
+  return wordsToAvoid.reduce((copy, word) => {
+    return copy.replace(new RegExp(escapeRegExp(word), "gi"), "").trim();
+  }, value);
+}
+
+function escapeRegExp(value: string) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

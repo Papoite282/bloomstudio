@@ -8,15 +8,16 @@ datasource db {
 }
 
 model BrandProfile {
-  id          String   @id @default(cuid())
-  name        String
-  description String
-  tone        String
-  colors      String?
-  audience    String?
-  language    String   @default("pt")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id           String   @id @default(cuid())
+  name         String
+  description  String
+  tone         String
+  colors       String?
+  audience     String?
+  language     String   @default("pt")
+  wordsToAvoid String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }
 
 model ReelProject {

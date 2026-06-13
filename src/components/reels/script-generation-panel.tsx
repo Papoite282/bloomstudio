@@ -16,9 +16,10 @@ import {
   type SceneEditorAsset,
   type SceneEditorScript,
 } from "@/components/SceneEditor";
-import { Badge, type BadgeVariant } from "@/components/ui/badge";
+import { Badge } from "@/components/ui/badge";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { getStatusLabel, getStatusVariant } from "@/lib/status-labels";
 
 export type StoredReelScript = SceneEditorScript;
 export type StoredMediaAsset = SceneEditorAsset;
@@ -156,8 +157,8 @@ export function ScriptGenerationPanel({
                   ? "Gerado com IA"
                   : "Gerado localmente"}
               </Badge>
-              <Badge variant={getStatusBadgeVariant(status)}>
-                {formatProjectStatus(status)}
+              <Badge variant={getStatusVariant(status)}>
+                {getStatusLabel(status)}
               </Badge>
             </div>
           ) : null}
@@ -254,15 +255,15 @@ function VideoExportPanel({
             do Git.
           </p>
         </div>
-        <Badge variant={getStatusBadgeVariant(status)}>
-          {formatProjectStatus(status)}
+        <Badge variant={getStatusVariant(status)}>
+          {getStatusLabel(status)}
         </Badge>
       </div>
 
       {isRendering || status === "rendering" ? (
         <StatusMessage
           tone="info"
-          message="A renderizar o vídeo localmente. Este passo pode demorar alguns minutos."
+          message="A gerar o vídeo localmente. Este passo pode demorar alguns minutos."
         />
       ) : null}
       {renderSuccess ? (
@@ -355,35 +356,6 @@ function StatusMessage({
       <span>{message}</span>
     </div>
   );
-}
-
-function getStatusBadgeVariant(status: string): BadgeVariant {
-  if (status === "exported") {
-    return "dark";
-  }
-
-  if (status === "rendering") {
-    return "blush";
-  }
-
-  if (status === "failed") {
-    return "blush";
-  }
-
-  return "olive";
-}
-
-function formatProjectStatus(status: string) {
-  const labels: Record<string, string> = {
-    draft: "Rascunho",
-    exported: "Exportado",
-    failed: "Falhou",
-    generating_script: "A gerar roteiro",
-    rendering: "A renderizar",
-    script_ready: "Roteiro pronto",
-  };
-
-  return labels[status] ?? status;
 }
 
 function formatExportDate(value: string) {

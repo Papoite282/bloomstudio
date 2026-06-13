@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Clapperboard, LayoutDashboard, Plus } from "lucide-react";
+import { Clapperboard, LayoutDashboard, Plus, Settings } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -10,6 +10,7 @@ const navItems = [
   { href: "/", label: "Início", icon: LayoutDashboard },
   { href: "/reels", label: "Reels", icon: Clapperboard },
   { href: "/reels/new", label: "Novo", icon: Plus },
+  { href: "/settings/brand", label: "Marca", icon: Settings },
 ];
 
 export function AppShell({ children }: { children: React.ReactNode }) {

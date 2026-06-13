@@ -1,3 +1,5 @@
+export { TEMPLATE_OPTIONS } from "@/lib/reel-templates";
+
 export const OBJECTIVE_OPTIONS = [
   "Mostrar processo artístico",
   "Promover print Etsy",
@@ -14,13 +16,6 @@ export const STYLE_OPTIONS = [
   "Soft aesthetic",
   "Rustic",
   "Calm art diary",
-] as const;
-
-export const TEMPLATE_OPTIONS = [
-  "Soft Art Reveal",
-  "Sketchbook Diary",
-  "From Blank to Bloom",
-  "Etsy Print Promo",
 ] as const;
 
 export const DURATION_OPTIONS = [7, 10, 15, 20, 30] as const;

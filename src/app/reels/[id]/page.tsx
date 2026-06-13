@@ -12,7 +12,9 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
+import { getTemplateByName } from "@/lib/reel-templates";
 import { reelSceneSchema } from "@/lib/schemas/reelScriptSchema";
+import { getStatusLabel, getStatusVariant } from "@/lib/status-labels";
 
 type ReelDetailsPageProps = {
   params: Promise<{ id: string }>;
@@ -51,6 +53,10 @@ export default async function ReelDetailsPage({
     notFound();
   }
 
+  const selectedTemplate = project.template
+    ? getTemplateByName(project.template)
+    : null;
+
   return (
     <div className="space-y-8">
       <section className="border-b border-bloom-olive/15 pb-6">
@@ -64,7 +70,9 @@ export default async function ReelDetailsPage({
 
         <div className="mt-5 max-w-3xl space-y-3">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge variant="olive">{project.status}</Badge>
+            <Badge variant={getStatusVariant(project.status)}>
+              {getStatusLabel(project.status)}
+            </Badge>
             <span className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
               {formatDate(project.createdAt)}
             </span>
@@ -80,10 +88,51 @@ export default async function ReelDetailsPage({
 
       <section className="grid gap-4 md:grid-cols-4">
         <Metric label="Estilo" value={project.style} />
-        <Metric label="Template" value={project.template ?? "Sem template"} />
+        <Metric
+          label="Template"
+          value={selectedTemplate?.name ?? "Sem template"}
+        />
         <Metric label="Duração" value={`${project.duration}s`} />
         <Metric label="Idioma" value={project.language.toUpperCase()} />
       </section>
+
+      {selectedTemplate ? (
+        <Card className="p-5">
+          <div className="flex flex-col justify-between gap-5 lg:flex-row lg:items-start">
+            <div className="max-w-3xl">
+              <Badge variant="cream">Template criativo</Badge>
+              <h2 className="mt-3 font-serif text-3xl text-bloom-ink">
+                {selectedTemplate.name}
+              </h2>
+              <p className="mt-2 text-sm leading-6 text-bloom-ink/62">
+                {selectedTemplate.description}
+              </p>
+              <p className="mt-3 text-sm text-bloom-ink/58">
+                Ideal para {selectedTemplate.bestFor.toLowerCase()}
+              </p>
+            </div>
+
+            <div className="grid min-w-0 gap-3 sm:grid-cols-2 lg:min-w-80 lg:grid-cols-1">
+              <TemplateFact
+                label="Movimento base"
+                value={formatMotion(selectedTemplate.defaultMotion)}
+              />
+              <TemplateFact
+                label="CTA sugerido"
+                value={selectedTemplate.suggestedCTA}
+              />
+            </div>
+          </div>
+
+          <div className="mt-5 flex flex-wrap gap-2">
+            {selectedTemplate.moodKeywords.map((keyword) => (
+              <Badge key={keyword} variant="olive">
+                {keyword}
+              </Badge>
+            ))}
+          </div>
+        </Card>
+      ) : null}
 
       <ScriptGenerationPanel
         projectId={project.id}
@@ -198,6 +247,29 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-sm font-medium text-bloom-ink">{value}</p>
     </Card>
   );
+}
+
+function TemplateFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-bloom-olive/14 bg-bloom-cream/55 px-4 py-3">
+      <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
+        {label}
+      </p>
+      <p className="mt-1 text-sm leading-5 text-bloom-ink">{value}</p>
+    </div>
+  );
+}
+
+function formatMotion(motion: string) {
+  const labels: Record<string, string> = {
+    pan_down: "Pan down",
+    pan_up: "Pan up",
+    slow_zoom_in: "Slow zoom in",
+    slow_zoom_out: "Slow zoom out",
+    static: "Static",
+  };
+
+  return labels[motion] ?? motion;
 }
 
 function serializeAssets(assets: MediaAsset[]): StoredMediaAsset[] {

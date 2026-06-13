@@ -12,18 +12,28 @@ const brandProfile = {
   audience:
     "Pessoas que gostam de arte botânica, decoração calma, prints digitais, slow living, natureza, sketchbooks e estética cottagecore.",
   language: "pt",
+  wordsToAvoid:
+    "viral garantido, hack de algoritmo, explode o teu alcance, conteúdo que vende sozinho, fórmula secreta, sucesso garantido",
 };
 
 async function main() {
   const existingProfile = await prisma.brandProfile.findFirst({
-    where: { name: brandProfile.name },
-    select: { id: true },
+    select: {
+      id: true,
+      colors: true,
+      audience: true,
+      wordsToAvoid: true,
+    },
   });
 
   if (existingProfile) {
     await prisma.brandProfile.update({
       where: { id: existingProfile.id },
-      data: brandProfile,
+      data: {
+        colors: existingProfile.colors ?? brandProfile.colors,
+        audience: existingProfile.audience ?? brandProfile.audience,
+        wordsToAvoid: existingProfile.wordsToAvoid ?? brandProfile.wordsToAvoid,
+      },
     });
 
     return;

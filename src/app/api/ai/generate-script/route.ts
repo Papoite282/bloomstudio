@@ -81,6 +81,7 @@ export async function POST(request: Request) {
       ? generated
       : {
           script: createFallbackReelScript({
+            brandProfile,
             project,
             mediaAssets: project.mediaAssets,
           }),

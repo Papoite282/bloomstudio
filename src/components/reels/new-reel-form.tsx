@@ -33,6 +33,7 @@ import {
   formatFileSize,
   validateFileBasics,
 } from "@/lib/reel-form-options";
+import { REEL_TEMPLATES, getTemplateByName } from "@/lib/reel-templates";
 
 type PreviewFile = {
   id: string;
@@ -63,6 +64,10 @@ export function NewReelForm() {
         .filter((preview) => !preview.error)
         .map((preview) => preview.file),
     [previews],
+  );
+  const selectedTemplate = useMemo(
+    () => getTemplateByName(template),
+    [template],
   );
 
   useEffect(() => {
@@ -113,6 +118,13 @@ export function NewReelForm() {
 
       return currentPreviews.filter((preview) => preview.id !== id);
     });
+  }
+
+  function handleTemplateChange(value: string) {
+    const nextTemplate = getTemplateByName(value);
+
+    setTemplate(value);
+    setDuration(String(nextTemplate.suggestedDuration));
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -246,11 +258,11 @@ export function NewReelForm() {
               </span>
               <Select
                 value={template}
-                onChange={(event) => setTemplate(event.target.value)}
+                onChange={(event) => handleTemplateChange(event.target.value)}
               >
-                {TEMPLATE_OPTIONS.map((option) => (
-                  <option key={option} value={option}>
-                    {option}
+                {REEL_TEMPLATES.map((option) => (
+                  <option key={option.id} value={option.name}>
+                    {option.name}
                   </option>
                 ))}
               </Select>
@@ -428,9 +440,35 @@ export function NewReelForm() {
                   Estrutura
                 </p>
                 <p className="mt-2 text-sm leading-6 text-bloom-ink/70">
-                  {template} com {duration} segundos em {language.toUpperCase()}
-                  .
+                  {selectedTemplate.description}
                 </p>
+              </div>
+              <div className="rounded-lg bg-bloom-cream/70 p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
+                  Melhor para
+                </p>
+                <p className="mt-2 text-sm leading-6 text-bloom-ink/70">
+                  {selectedTemplate.bestFor}
+                </p>
+              </div>
+              <div className="rounded-lg bg-bloom-cream/70 p-3">
+                <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
+                  Ritmo sugerido
+                </p>
+                <p className="mt-2 text-sm leading-6 text-bloom-ink/70">
+                  {duration}s em {language.toUpperCase()} ·{" "}
+                  {selectedTemplate.defaultMotion.replaceAll("_", " ")}
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {selectedTemplate.moodKeywords.map((keyword) => (
+                    <span
+                      key={keyword}
+                      className="rounded-md border border-bloom-olive/15 bg-bloom-porcelain px-2 py-1 text-xs text-bloom-ink/62"
+                    >
+                      {keyword}
+                    </span>
+                  ))}
+                </div>
               </div>
               <div className="rounded-lg bg-bloom-cream/70 p-3">
                 <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">

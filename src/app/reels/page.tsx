@@ -11,6 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
+import { getStatusLabel, getStatusVariant } from "@/lib/status-labels";
 
 export const metadata = {
   title: "Reels",
@@ -84,7 +85,9 @@ export default async function ReelsPage() {
               <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                 <div className="space-y-4">
                   <div className="flex flex-wrap items-center gap-2">
-                    <Badge variant="olive">{project.status}</Badge>
+                    <Badge variant={getStatusVariant(project.status)}>
+                      {getStatusLabel(project.status)}
+                    </Badge>
                     <span className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
                       {formatDate(project.createdAt)}
                     </span>
