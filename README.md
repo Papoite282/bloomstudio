@@ -17,8 +17,8 @@ Artistas independentes precisam transformar fotografias, vídeos de processo, mo
 - Adição de novas imagens ou vídeos a projetos existentes.
 - Perfil de marca editável para orientar tom, cores, público e palavras a evitar.
 - Templates criativos para arte botânica, sketchbook, processo e promoção suave de prints.
-- Geração de roteiro com hook, título sugerido, cenas, legenda, hashtags e sugestão de áudio.
-- Fallback local quando a API externa não está configurada, sem quota ou temporariamente indisponível.
+- Geração de roteiro com OpenAI API: hook, título sugerido, cenas, legenda, hashtags e sugestão de áudio.
+- Fallback local quando a OpenAI API não está configurada, sem quota ou temporariamente indisponível.
 - Editor de timeline com cenas, assets, duração, movimento, texto no ecrã e notas.
 - Renderização local de vídeo vertical em MP4 com FFmpeg.
 - Player HTML5 e download do ficheiro final.
@@ -43,14 +43,19 @@ Artistas independentes precisam transformar fotografias, vídeos de processo, mo
 - `prisma/` contém schema, migrations e seed.
 - `storage/` é usado apenas localmente para uploads, temporários e exports.
 
-## Screenshots
+## MVP Status
 
-Adiciona capturas reais quando preparares a apresentação pública:
+A versão MVP v1.0 inclui:
 
-- Dashboard com métricas e fluxo criativo.
-- Wizard de criação de reel.
-- Página de detalhe com roteiro, timeline e export.
-- Settings da marca.
+- upload local de imagens e vídeos
+- roteiro com OpenAI API ou fallback local
+- editor de timeline
+- render MP4 local com FFmpeg
+- player HTML5 e download
+- settings da marca
+- templates criativos
+- drag & drop
+- adição de assets a projetos existentes
 
 ## Fluxo da App
 
@@ -133,7 +138,7 @@ Se já existir um MP4 antigo, a interface mostra um aviso de que o vídeo pode e
 
 Cada render cria um novo ficheiro local e o player usa uma URL com versão para evitar cache do vídeo anterior.
 
-## Variáveis de Ambiente
+## OpenAI API e Fallback Local
 
 ```env
 OPENAI_API_KEY=
@@ -198,6 +203,17 @@ Se FFmpeg não estiver disponível, a app mostra uma mensagem amigável e manté
 - Chaves de API não são expostas no frontend nem guardadas na base de dados.
 - As rotas de media e export resolvem ficheiros apenas dentro de `storage/`.
 
+## Instruções de Demo
+
+1. Corre `npm install`, `npx prisma migrate dev` e `npx prisma db seed`.
+2. Confirma `ffmpeg -version`.
+3. Corre `npm run dev` e abre `http://localhost:3000`.
+4. Ajusta o perfil da marca em `/settings/brand`.
+5. Cria um projeto em `/reels/new` com pelo menos duas imagens.
+6. Gera o roteiro. Se a OpenAI API não estiver disponível, o fallback local mantém a demo funcional.
+7. Edita uma cena da timeline, adiciona um novo asset ao projeto e cria uma nova cena com esse asset.
+8. Clica em `Gerar vídeo`, confirma o player HTML5 e testa `Download MP4`.
+
 ## Comandos Úteis
 
 ```bash
@@ -209,13 +225,15 @@ npm run prisma:seed
 npm run prisma:studio
 ```
 
-## Limitações Conhecidas
+## Known limitations
 
-- A edição de vídeo é local e depende de FFmpeg instalado.
+- OpenAI depende de quota ativa e de um modelo válido configurado localmente.
+- A renderização FFmpeg depende de FFmpeg instalado no sistema.
+- A app ainda não tem autenticação.
+- A app ainda usa SQLite e storage local.
 - Uploads e exports não são sincronizados entre máquinas.
-- O fallback local gera roteiros úteis, mas menos variados do que uma geração externa.
-- A app não inclui autenticação nesta fase.
-- O export atual é focado em MP4 vertical 1080x1920.
+- O fallback local gera roteiros úteis, mas menos variados do que geração via OpenAI API.
+- Produção exigiria Postgres, autenticação, storage externo e um worker dedicado para renderização.
 
 ## Roadmap
 
