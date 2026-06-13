@@ -9,6 +9,7 @@ import {
   type StoredReelExport,
   type StoredReelScript,
 } from "@/components/reels/script-generation-panel";
+import { ProjectAssetUpload } from "@/components/reels/project-asset-upload";
 import { Badge } from "@/components/ui/badge";
 import { Card } from "@/components/ui/card";
 import { prisma } from "@/lib/prisma";
@@ -133,6 +134,11 @@ export default async function ReelDetailsPage({
           </div>
         </Card>
       ) : null}
+
+      <ProjectAssetUpload
+        projectId={project.id}
+        existingAssetCount={project.mediaAssets.length}
+      />
 
       <ScriptGenerationPanel
         projectId={project.id}

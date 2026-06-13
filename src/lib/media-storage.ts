@@ -139,6 +139,16 @@ export async function readStoredMedia(relativePath: string) {
   return readFile(mediaPath);
 }
 
+export async function removeStoredMedia(relativePath: string) {
+  const mediaPath = resolveStoredMediaPath(relativePath);
+
+  if (!mediaPath) {
+    return;
+  }
+
+  await rm(mediaPath, { force: true }).catch(() => null);
+}
+
 export function getContentTypeFromPath(filePath: string) {
   const extension = getFileExtension(filePath);
 

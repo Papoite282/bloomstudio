@@ -1,51 +1,24 @@
 "use client";
 
-import {
-  ChangeEvent,
-  FormEvent,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { FormEvent, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import {
-  ArrowRight,
-  Film,
-  ImageIcon,
-  Loader2,
-  Sparkles,
-  Upload,
-  X,
-} from "lucide-react";
+import { ArrowRight, ImageIcon, Loader2, Sparkles } from "lucide-react";
 
+import { FileDropzone, type FileDropzoneFile } from "@/components/FileDropzone";
 import { Button, buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
 import {
-  ACCEPTED_FILE_INPUT,
   DURATION_OPTIONS,
   LANGUAGE_OPTIONS,
   MAX_FILES_PER_PROJECT,
   OBJECTIVE_OPTIONS,
   STYLE_OPTIONS,
   TEMPLATE_OPTIONS,
-  formatFileSize,
-  validateFileBasics,
 } from "@/lib/reel-form-options";
 import { REEL_TEMPLATES, getTemplateByName } from "@/lib/reel-templates";
-
-type PreviewFile = {
-  id: string;
-  file: File;
-  name: string;
-  size: string;
-  type: "image" | "video" | "unknown";
-  url: string;
-  error?: string;
-};
 
 export function NewReelForm() {
   const router = useRouter();
@@ -55,10 +28,9 @@ export function NewReelForm() {
   const [template, setTemplate] = useState<string>(TEMPLATE_OPTIONS[0]);
   const [duration, setDuration] = useState(String(DURATION_OPTIONS[2]));
   const [language, setLanguage] = useState<string>(LANGUAGE_OPTIONS[0]);
-  const [previews, setPreviews] = useState<PreviewFile[]>([]);
+  const [previews, setPreviews] = useState<FileDropzoneFile[]>([]);
   const [error, setError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const previewsRef = useRef<PreviewFile[]>([]);
 
   const validFiles = useMemo(
     () =>
@@ -71,60 +43,6 @@ export function NewReelForm() {
     () => getTemplateByName(template),
     [template],
   );
-
-  useEffect(() => {
-    previewsRef.current = previews;
-  }, [previews]);
-
-  useEffect(() => {
-    return () => {
-      previewsRef.current.forEach((preview) =>
-        URL.revokeObjectURL(preview.url),
-      );
-    };
-  }, []);
-
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const selectedFiles = Array.from(event.target.files ?? []);
-
-    setError(
-      selectedFiles.length > MAX_FILES_PER_PROJECT
-        ? `Seleciona no máximo ${MAX_FILES_PER_PROJECT} ficheiros por projeto.`
-        : "",
-    );
-    setPreviews((currentPreviews) => {
-      currentPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
-
-      return selectedFiles.map((file) => {
-        const validation = validateFileBasics(file);
-        const kind = "kind" in validation ? validation.kind : "unknown";
-
-        return {
-          id: `${file.name}-${file.lastModified}-${file.size}`,
-          file,
-          name: file.name,
-          size: formatFileSize(file.size),
-          type: kind,
-          url: URL.createObjectURL(file),
-          error: "error" in validation ? validation.error : undefined,
-        };
-      });
-    });
-  }
-
-  function removePreview(id: string) {
-    setPreviews((currentPreviews) => {
-      const previewToRemove = currentPreviews.find(
-        (preview) => preview.id === id,
-      );
-
-      if (previewToRemove) {
-        URL.revokeObjectURL(previewToRemove.url);
-      }
-
-      return currentPreviews.filter((preview) => preview.id !== id);
-    });
-  }
 
   function handleTemplateChange(value: string) {
     const nextTemplate = getTemplateByName(value);
@@ -316,7 +234,7 @@ export function NewReelForm() {
         <Card className="space-y-5 p-5">
           <div className="flex items-center gap-3">
             <span className="flex h-10 w-10 items-center justify-center rounded-md bg-bloom-blush/30 text-bloom-ink">
-              <Film aria-hidden className="h-5 w-5" />
+              <ImageIcon aria-hidden className="h-5 w-5" />
             </span>
             <div>
               <h2 className="font-serif text-3xl text-bloom-ink">
@@ -329,80 +247,15 @@ export function NewReelForm() {
             </div>
           </div>
 
-          <label className="flex min-h-44 cursor-pointer flex-col items-center justify-center rounded-lg border border-dashed border-bloom-olive/35 bg-bloom-cream/65 px-5 py-8 text-center transition hover:border-bloom-olive hover:bg-bloom-sage/20">
-            <Upload aria-hidden className="h-8 w-8 text-bloom-olive" />
-            <span className="mt-3 font-medium text-bloom-ink">
-              Escolher ficheiros
-            </span>
-            <span className="mt-1 text-sm text-bloom-ink/55">
-              Seleciona uma ou várias imagens e vídeos
-            </span>
-            <input
-              className="sr-only"
-              type="file"
-              name="files"
-              accept={ACCEPTED_FILE_INPUT}
-              multiple
-              onChange={handleFileChange}
-            />
-          </label>
-
-          {previews.length > 0 ? (
-            <div className="grid gap-3 sm:grid-cols-2">
-              {previews.map((preview, index) => (
-                <div
-                  key={preview.id}
-                  className="overflow-hidden rounded-lg border border-bloom-olive/15 bg-bloom-porcelain"
-                >
-                  <div className="aspect-[4/3] bg-bloom-cream">
-                    {preview.type === "image" ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={preview.url}
-                        alt={preview.name}
-                        className="h-full w-full object-cover"
-                      />
-                    ) : preview.type === "video" ? (
-                      <video
-                        src={preview.url}
-                        className="h-full w-full object-cover"
-                        controls
-                        muted
-                      />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-sm text-bloom-ink/50">
-                        Preview indisponível
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-start justify-between gap-3 p-3">
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-medium text-bloom-ink">
-                        {index + 1}. {preview.name}
-                      </p>
-                      <p className="mt-1 text-xs text-bloom-ink/50">
-                        {preview.size}
-                      </p>
-                      {preview.error ? (
-                        <p className="mt-2 text-xs leading-5 text-red-700">
-                          {preview.error}
-                        </p>
-                      ) : null}
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removePreview(preview.id)}
-                      aria-label={`Remover ${preview.name}`}
-                      title={`Remover ${preview.name}`}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-bloom-olive/20 text-bloom-ink transition hover:bg-bloom-cream"
-                    >
-                      <X aria-hidden className="h-4 w-4" />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : null}
+          <FileDropzone
+            id="new-reel-files"
+            files={previews}
+            onFilesChange={(nextFiles) => {
+              setPreviews(nextFiles);
+              setError("");
+            }}
+            disabled={isSubmitting}
+          />
         </Card>
 
         {error ? (

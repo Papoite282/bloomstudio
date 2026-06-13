@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   AlertCircle,
@@ -14,6 +14,7 @@ import {
 import {
   SceneEditor,
   type SceneEditorAsset,
+  type SceneEditorHandle,
   type SceneEditorScript,
 } from "@/components/SceneEditor";
 import { Badge } from "@/components/ui/badge";
@@ -31,12 +32,12 @@ export type StoredReelExport = {
 };
 
 export function ScriptGenerationPanel({
-  projectId,
-  projectDuration,
-  projectStatus,
   assets,
   initialExports,
   initialScript,
+  projectDuration,
+  projectId,
+  projectStatus,
 }: {
   projectId: string;
   projectDuration: number;
@@ -46,11 +47,15 @@ export function ScriptGenerationPanel({
   initialScript: StoredReelScript | null;
 }) {
   const router = useRouter();
+  const sceneEditorRef = useRef<SceneEditorHandle | null>(null);
   const [script, setScript] = useState(initialScript);
+  const [scriptVersion, setScriptVersion] = useState(0);
   const [exports, setExports] = useState(initialExports);
   const [status, setStatus] = useState(projectStatus);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isExportStale, setIsExportStale] = useState(false);
   const [error, setError] = useState("");
   const [generationNotice, setGenerationNotice] = useState(
     initialScript?.generationSource === "local"
@@ -96,6 +101,9 @@ export function ScriptGenerationPanel({
       }
 
       setScript(data.script);
+      setScriptVersion((currentVersion) => currentVersion + 1);
+      setHasUnsavedChanges(false);
+      setIsExportStale(exports.length > 0);
       setGenerationNotice(
         data.notice ??
           (data.script.generationSource === "local"
@@ -112,6 +120,9 @@ export function ScriptGenerationPanel({
 
   function handleScriptSaved(updatedScript: StoredReelScript) {
     setScript(updatedScript);
+    setScriptVersion((currentVersion) => currentVersion + 1);
+    setHasUnsavedChanges(false);
+    setIsExportStale(exports.length > 0);
     setRenderError("");
     setRenderSuccess("");
     setGenerationNotice("");
@@ -125,6 +136,23 @@ export function ScriptGenerationPanel({
     setRenderSuccess("");
 
     try {
+      if (sceneEditorRef.current?.hasUnsavedChanges()) {
+        setRenderSuccess("A guardar alterações antes de gerar o vídeo.");
+        const savedScript = await sceneEditorRef.current.saveIfDirty();
+
+        if (!savedScript) {
+          setStatus("script_ready");
+          setRenderSuccess("");
+          setRenderError(
+            "Não foi possível guardar a timeline antes de gerar o vídeo.",
+          );
+          return;
+        }
+
+        setScript(savedScript);
+        setHasUnsavedChanges(false);
+      }
+
       const response = await fetch(`/api/render/${projectId}`, {
         method: "POST",
       });
@@ -145,6 +173,7 @@ export function ScriptGenerationPanel({
         ...currentExports.filter((item) => item.id !== data.export?.id),
       ]);
       setStatus(data.status ?? "exported");
+      setIsExportStale(false);
       setRenderSuccess("Vídeo exportado com sucesso.");
       router.refresh();
     } catch {
@@ -201,8 +230,8 @@ export function ScriptGenerationPanel({
             variant="secondary"
             title={
               canRender
-                ? "Gerar vídeo MP4 local"
-                : "Guarda uma timeline válida com assets antes de renderizar"
+                ? "Guardar alterações pendentes e gerar vídeo MP4 local"
+                : "Garante que a timeline tem cenas e assets válidos antes de renderizar"
             }
           >
             {isRendering ? (
@@ -236,10 +265,15 @@ export function ScriptGenerationPanel({
         </Card>
       ) : (
         <SceneEditor
+          key={`${script.id}-${scriptVersion}-${assets
+            .map((asset) => asset.id)
+            .join("|")}`}
+          ref={sceneEditorRef}
           projectId={projectId}
           projectDuration={projectDuration}
           assets={assets}
           script={script}
+          onDirtyChange={setHasUnsavedChanges}
           onScriptSaved={handleScriptSaved}
         />
       )}
@@ -247,6 +281,8 @@ export function ScriptGenerationPanel({
       {script ? (
         <VideoExportPanel
           exportItem={latestExport}
+          hasUnsavedChanges={hasUnsavedChanges}
+          isExportStale={isExportStale}
           isRendering={isRendering}
           renderError={renderError}
           renderSuccess={renderSuccess}
@@ -259,17 +295,28 @@ export function ScriptGenerationPanel({
 
 function VideoExportPanel({
   exportItem,
+  hasUnsavedChanges,
+  isExportStale,
   isRendering,
   renderError,
   renderSuccess,
   status,
 }: {
   exportItem: StoredReelExport | null;
+  hasUnsavedChanges: boolean;
+  isExportStale: boolean;
   isRendering: boolean;
   renderError: string;
   renderSuccess: string;
   status: string;
 }) {
+  const exportVersion = exportItem
+    ? encodeURIComponent(exportItem.createdAt)
+    : "";
+  const exportUrl = exportItem
+    ? `/api/exports/${exportItem.id}?v=${exportVersion}`
+    : "";
+
   return (
     <Card className="space-y-5 p-5">
       <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-start">
@@ -300,6 +347,18 @@ function VideoExportPanel({
       {renderError ? (
         <StatusMessage tone="error" message={renderError} />
       ) : null}
+      {hasUnsavedChanges ? (
+        <StatusMessage
+          tone="info"
+          message="Tens alterações por guardar. Ao gerar o vídeo, a timeline é guardada automaticamente primeiro."
+        />
+      ) : null}
+      {isExportStale ? (
+        <StatusMessage
+          tone="info"
+          message="Este vídeo pode estar desatualizado. Gera novamente para aplicar as alterações."
+        />
+      ) : null}
       {status === "failed" && !renderError ? (
         <StatusMessage
           tone="error"
@@ -311,7 +370,7 @@ function VideoExportPanel({
         <div className="grid gap-5 lg:grid-cols-[20rem_1fr]">
           <div className="overflow-hidden rounded-lg border border-bloom-olive/16 bg-bloom-ink">
             <video
-              src={`/api/exports/${exportItem.id}`}
+              src={exportUrl}
               className="aspect-[9/16] h-full w-full bg-bloom-ink object-contain"
               controls
               preload="metadata"
@@ -333,7 +392,7 @@ function VideoExportPanel({
               />
             </div>
             <a
-              href={`/api/exports/${exportItem.id}`}
+              href={exportUrl}
               download="bloomstudio-reel.mp4"
               className={buttonStyles({ variant: "primary" })}
             >
@@ -363,8 +422,8 @@ function ExportMetric({ label, value }: { label: string; value: string }) {
 }
 
 function StatusMessage({
-  tone,
   message,
+  tone,
 }: {
   tone: "success" | "error" | "info";
   message: string;

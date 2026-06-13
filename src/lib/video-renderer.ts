@@ -19,6 +19,7 @@ const FPS = 30;
 const RESOLUTION = `${WIDTH}x${HEIGHT}`;
 
 type RenderReelVideoInput = {
+  exportFileName: string;
   project: ReelProject;
   mediaAssets: MediaAsset[];
   scenes: ReelSceneOutput[];
@@ -42,6 +43,7 @@ export async function ensureFfmpegAvailable() {
 }
 
 export async function renderReelVideo({
+  exportFileName,
   project,
   mediaAssets,
   scenes,
@@ -50,7 +52,7 @@ export async function renderReelVideo({
 
   const projectTmpRoot = join(TMP_ROOT, project.id);
   const renderTmpRoot = join(projectTmpRoot, randomUUID());
-  const exportPath = join(EXPORTS_ROOT, project.id, "final.mp4");
+  const exportPath = join(EXPORTS_ROOT, project.id, exportFileName);
   const totalDuration = scenes.reduce(
     (total, scene) => total + scene.duration,
     0,

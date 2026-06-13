@@ -13,6 +13,8 @@ Artistas independentes precisam transformar fotografias, vídeos de processo, mo
 - Dashboard interno com métricas, projetos recentes e atalhos principais.
 - Biblioteca de projetos de reels com estados claros.
 - Wizard para criar reels com objetivo, estilo, template, duração, idioma e uploads.
+- Upload por drag & drop com previews antes de enviar.
+- Adição de novas imagens ou vídeos a projetos existentes.
 - Perfil de marca editável para orientar tom, cores, público e palavras a evitar.
 - Templates criativos para arte botânica, sketchbook, processo e promoção suave de prints.
 - Geração de roteiro com hook, título sugerido, cenas, legenda, hashtags e sugestão de áudio.
@@ -20,6 +22,7 @@ Artistas independentes precisam transformar fotografias, vídeos de processo, mo
 - Editor de timeline com cenas, assets, duração, movimento, texto no ecrã e notas.
 - Renderização local de vídeo vertical em MP4 com FFmpeg.
 - Player HTML5 e download do ficheiro final.
+- Aviso quando um vídeo exportado pode estar desatualizado depois de editar a timeline.
 
 ## Stack
 
@@ -58,6 +61,8 @@ Adiciona capturas reais quando preparares a apresentação pública:
 5. Gera um roteiro inicial.
 6. Edita a timeline e guarda as alterações.
 7. Exporta o vídeo final em MP4.
+
+Também podes abrir um projeto existente e adicionar mais imagens ou vídeos sem recriar o reel. Os novos assets aparecem na galeria e ficam disponíveis nos selects das cenas.
 
 ## Setup Local
 
@@ -99,6 +104,34 @@ npm run dev
 ```
 
 A aplicação fica disponível em `http://localhost:3000`.
+
+## Uploads
+
+BloomStudio aceita upload por drag & drop e por seleção tradicional de ficheiros.
+
+Formatos aceites:
+
+- `jpg`
+- `jpeg`
+- `png`
+- `webp`
+- `mp4`
+- `mov`
+
+Limites:
+
+- imagens até 15 MB
+- vídeos até 200 MB
+
+Na criação de um projeto, os ficheiros são adicionados em `/reels/new`. Num projeto existente, usa a área “Adicionar imagens ou vídeos ao projeto” em `/reels/{id}`.
+
+## Timeline e Re-render
+
+Quando alteras texto, duração, movimento ou assets de uma cena, a timeline fica com alterações por guardar. Ao clicar em “Gerar vídeo”, BloomStudio guarda a timeline automaticamente antes de renderizar.
+
+Se já existir um MP4 antigo, a interface mostra um aviso de que o vídeo pode estar desatualizado. Gera novamente para aplicar as alterações ao MP4 final.
+
+Cada render cria um novo ficheiro local e o player usa uma URL com versão para evitar cache do vídeo anterior.
 
 ## Variáveis de Ambiente
 

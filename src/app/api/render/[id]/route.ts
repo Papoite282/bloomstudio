@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 
 import { prisma } from "@/lib/prisma";
@@ -71,32 +72,19 @@ export async function POST(
 
   try {
     const renderedVideo = await renderReelVideo({
+      exportFileName: `${randomUUID()}.mp4`,
       project,
       mediaAssets: project.mediaAssets,
       scenes: parsedScenes.data,
     });
-    const existingExport = await prisma.reelExport.findFirst({
-      where: {
-        path: renderedVideo.path,
+    const savedExport = await prisma.reelExport.create({
+      data: {
         reelProjectId: project.id,
+        path: renderedVideo.path,
+        duration: renderedVideo.duration,
+        resolution: renderedVideo.resolution,
       },
     });
-    const savedExport = existingExport
-      ? await prisma.reelExport.update({
-          where: { id: existingExport.id },
-          data: {
-            duration: renderedVideo.duration,
-            resolution: renderedVideo.resolution,
-          },
-        })
-      : await prisma.reelExport.create({
-          data: {
-            reelProjectId: project.id,
-            path: renderedVideo.path,
-            duration: renderedVideo.duration,
-            resolution: renderedVideo.resolution,
-          },
-        });
 
     await prisma.reelProject.update({
       where: { id: project.id },

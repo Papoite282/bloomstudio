@@ -68,7 +68,7 @@ export async function GET(
       status: 206,
       headers: {
         "Accept-Ranges": "bytes",
-        "Cache-Control": "private, max-age=3600",
+        "Cache-Control": "private, no-store",
         "Content-Disposition": `inline; filename="${fileName}"`,
         "Content-Length": String(end - start + 1),
         "Content-Range": `bytes ${start}-${end}/${fileSize}`,
@@ -87,7 +87,7 @@ export async function GET(
   return new Response(new Uint8Array(file), {
     headers: {
       "Accept-Ranges": "bytes",
-      "Cache-Control": "private, max-age=3600",
+      "Cache-Control": "private, no-store",
       "Content-Disposition": `inline; filename="${fileName}"`,
       "Content-Length": String(file.byteLength),
       "Content-Type": "video/mp4",

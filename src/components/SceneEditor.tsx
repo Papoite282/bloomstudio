@@ -1,6 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  forwardRef,
+  type ReactNode,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useState,
+} from "react";
 import {
   AlertCircle,
   ArrowDown,
@@ -42,6 +49,11 @@ export type SceneEditorScript = {
   generationSource: "ai" | "local";
 };
 
+export type SceneEditorHandle = {
+  hasUnsavedChanges: () => boolean;
+  saveIfDirty: () => Promise<SceneEditorScript | null>;
+};
+
 type EditableScene = ReelSceneOutput & {
   clientId: string;
 };
@@ -76,349 +88,387 @@ type SceneEditorProps = {
   projectDuration: number;
   assets: SceneEditorAsset[];
   script: SceneEditorScript;
+  onDirtyChange?: (isDirty: boolean) => void;
   onScriptSaved: (script: SceneEditorScript) => void;
 };
 
-export function SceneEditor({
-  projectId,
-  projectDuration,
-  assets,
-  script,
-  onScriptSaved,
-}: SceneEditorProps) {
-  const [draft, setDraft] = useState(() => createDraft(script, assets));
-  const [isSaving, setIsSaving] = useState(false);
-  const [success, setSuccess] = useState("");
-  const [error, setError] = useState("");
-
-  const totalDuration = useMemo(
-    () =>
-      draft.scenes.reduce(
-        (total, scene) =>
-          total + (Number.isFinite(scene.duration) ? scene.duration : 0),
-        0,
-      ),
-    [draft.scenes],
-  );
-  const invalidSceneOrders = useMemo(
-    () =>
-      draft.scenes
-        .filter(
-          (scene) => scene.assetIndex < 0 || scene.assetIndex >= assets.length,
-        )
-        .map((scene) => scene.order),
-    [assets.length, draft.scenes],
-  );
-  const hashtags = useMemo(
-    () => parseHashtags(draft.hashtagsText),
-    [draft.hashtagsText],
-  );
-  const exceedsDuration = totalDuration > projectDuration;
-
-  function updateDraftField<K extends keyof DraftScript>(
-    field: K,
-    value: DraftScript[K],
+export const SceneEditor = forwardRef<SceneEditorHandle, SceneEditorProps>(
+  function SceneEditor(
+    {
+      assets,
+      onDirtyChange,
+      onScriptSaved,
+      projectDuration,
+      projectId,
+      script,
+    },
+    ref,
   ) {
-    setDraft((current) => ({ ...current, [field]: value }));
-    setSuccess("");
-  }
+    const [draft, setDraft] = useState(() => createDraft(script, assets));
+    const [isDirty, setIsDirty] = useState(false);
+    const [isSaving, setIsSaving] = useState(false);
+    const [success, setSuccess] = useState("");
+    const [error, setError] = useState("");
 
-  function updateScene(
-    clientId: string,
-    changes: Partial<Omit<EditableScene, "clientId">>,
-  ) {
-    setDraft((current) => ({
-      ...current,
-      scenes: current.scenes.map((scene) =>
-        scene.clientId === clientId ? { ...scene, ...changes } : scene,
-      ),
-    }));
-    setSuccess("");
-  }
-
-  function addScene() {
-    setDraft((current) => ({
-      ...current,
-      scenes: normalizeSceneOrder([
-        ...current.scenes,
-        createEmptyScene(assets, current.scenes.length + 1, projectDuration),
-      ]),
-    }));
-    setSuccess("");
-  }
-
-  function removeScene(clientId: string) {
-    setDraft((current) => {
-      if (current.scenes.length === 1) {
-        return current;
-      }
-
-      return {
-        ...current,
-        scenes: normalizeSceneOrder(
-          current.scenes.filter((scene) => scene.clientId !== clientId),
+    const totalDuration = useMemo(
+      () =>
+        draft.scenes.reduce(
+          (total, scene) =>
+            total + (Number.isFinite(scene.duration) ? scene.duration : 0),
+          0,
         ),
-      };
-    });
-    setSuccess("");
-  }
+      [draft.scenes],
+    );
+    const invalidSceneOrders = useMemo(
+      () =>
+        draft.scenes
+          .filter(
+            (scene) =>
+              scene.assetIndex < 0 || scene.assetIndex >= assets.length,
+          )
+          .map((scene) => scene.order),
+      [assets.length, draft.scenes],
+    );
+    const hashtags = useMemo(
+      () => parseHashtags(draft.hashtagsText),
+      [draft.hashtagsText],
+    );
+    const exceedsDuration = totalDuration > projectDuration;
 
-  function moveScene(clientId: string, direction: "up" | "down") {
-    setDraft((current) => {
-      const index = current.scenes.findIndex(
-        (scene) => scene.clientId === clientId,
-      );
-      const targetIndex = direction === "up" ? index - 1 : index + 1;
+    useEffect(() => {
+      onDirtyChange?.(isDirty);
+    }, [isDirty, onDirtyChange]);
 
-      if (
-        index < 0 ||
-        targetIndex < 0 ||
-        targetIndex >= current.scenes.length
-      ) {
-        return current;
-      }
+    useImperativeHandle(ref, () => ({
+      hasUnsavedChanges: () => isDirty,
+      saveIfDirty: () => (isDirty ? saveScript() : Promise.resolve(script)),
+    }));
 
-      const nextScenes = [...current.scenes];
-      const currentScene = nextScenes[index];
-      const targetScene = nextScenes[targetIndex];
+    function markDirty() {
+      setIsDirty(true);
+      setSuccess("");
+      setError("");
+    }
 
-      nextScenes[index] = targetScene;
-      nextScenes[targetIndex] = currentScene;
+    function updateDraftField<K extends keyof DraftScript>(
+      field: K,
+      value: DraftScript[K],
+    ) {
+      setDraft((current) => ({ ...current, [field]: value }));
+      markDirty();
+    }
 
-      return {
+    function updateScene(
+      clientId: string,
+      changes: Partial<Omit<EditableScene, "clientId">>,
+    ) {
+      setDraft((current) => ({
         ...current,
-        scenes: normalizeSceneOrder(nextScenes),
-      };
-    });
-    setSuccess("");
-  }
-
-  async function saveScript() {
-    if (invalidSceneOrders.length > 0) {
-      setError("Escolhe um asset válido em todas as cenas antes de guardar.");
-      return;
+        scenes: current.scenes.map((scene) =>
+          scene.clientId === clientId ? { ...scene, ...changes } : scene,
+        ),
+      }));
+      markDirty();
     }
 
-    setIsSaving(true);
-    setError("");
-    setSuccess("");
+    function addScene() {
+      setDraft((current) => ({
+        ...current,
+        scenes: normalizeSceneOrder([
+          ...current.scenes,
+          createEmptyScene(assets, current.scenes.length + 1, projectDuration),
+        ]),
+      }));
+      markDirty();
+    }
 
-    try {
-      const response = await fetch(`/api/reels/${projectId}/script`, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          title: draft.title,
-          hook: draft.hook,
-          caption: draft.caption,
-          hashtags,
-          audioSuggestion: draft.audioSuggestion,
-          scenes: draft.scenes.map((scene) => ({
-            order: scene.order,
-            duration: scene.duration,
-            assetIndex: scene.assetIndex,
-            onScreenText: scene.onScreenText,
-            motion: scene.motion,
-            notes: scene.notes,
-          })),
-        }),
+    function removeScene(clientId: string) {
+      setDraft((current) => {
+        if (current.scenes.length === 1) {
+          return current;
+        }
+
+        return {
+          ...current,
+          scenes: normalizeSceneOrder(
+            current.scenes.filter((scene) => scene.clientId !== clientId),
+          ),
+        };
       });
-      const data = (await response.json().catch(() => null)) as {
-        script?: SceneEditorScript;
-        error?: string;
-      } | null;
+      markDirty();
+    }
 
-      if (!response.ok || !data?.script) {
-        setError(data?.error ?? "Não foi possível guardar as alterações.");
-        return;
+    function moveScene(clientId: string, direction: "up" | "down") {
+      setDraft((current) => {
+        const index = current.scenes.findIndex(
+          (scene) => scene.clientId === clientId,
+        );
+        const targetIndex = direction === "up" ? index - 1 : index + 1;
+
+        if (
+          index < 0 ||
+          targetIndex < 0 ||
+          targetIndex >= current.scenes.length
+        ) {
+          return current;
+        }
+
+        const nextScenes = [...current.scenes];
+        const currentScene = nextScenes[index];
+        const targetScene = nextScenes[targetIndex];
+
+        nextScenes[index] = targetScene;
+        nextScenes[targetIndex] = currentScene;
+
+        return {
+          ...current,
+          scenes: normalizeSceneOrder(nextScenes),
+        };
+      });
+      markDirty();
+    }
+
+    async function saveScript() {
+      if (invalidSceneOrders.length > 0) {
+        setError("Escolhe um asset válido em todas as cenas antes de guardar.");
+        return null;
       }
 
-      setDraft(createDraft(data.script, assets));
-      setSuccess("Alterações guardadas com sucesso.");
-      onScriptSaved(data.script);
-    } catch {
-      setError("Não foi possível guardar as alterações. Tenta novamente.");
-    } finally {
-      setIsSaving(false);
+      setIsSaving(true);
+      setError("");
+      setSuccess("");
+
+      try {
+        const response = await fetch(`/api/reels/${projectId}/script`, {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            title: draft.title,
+            hook: draft.hook,
+            caption: draft.caption,
+            hashtags,
+            audioSuggestion: draft.audioSuggestion,
+            scenes: draft.scenes.map((scene) => ({
+              order: scene.order,
+              duration: scene.duration,
+              assetIndex: scene.assetIndex,
+              onScreenText: scene.onScreenText,
+              motion: scene.motion,
+              notes: scene.notes,
+            })),
+          }),
+        });
+        const data = (await response.json().catch(() => null)) as {
+          script?: SceneEditorScript;
+          error?: string;
+        } | null;
+
+        if (!response.ok || !data?.script) {
+          setError(data?.error ?? "Não foi possível guardar as alterações.");
+          return null;
+        }
+
+        setDraft(createDraft(data.script, assets));
+        setIsDirty(false);
+        setSuccess("Alterações guardadas com sucesso.");
+        onScriptSaved(data.script);
+        return data.script;
+      } catch {
+        setError("Não foi possível guardar as alterações. Tenta novamente.");
+        return null;
+      } finally {
+        setIsSaving(false);
+      }
     }
-  }
 
-  return (
-    <div className="space-y-5">
-      <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
-        <div>
-          <Badge variant="cream">Timeline editável</Badge>
-          <h3 className="mt-3 font-serif text-4xl text-bloom-ink">
-            Editor do Reel
-          </h3>
-          <p className="mt-2 max-w-2xl text-sm leading-6 text-bloom-ink/58">
-            Afina o roteiro, escolhe os assets de cada cena e guarda a timeline
-            antes da renderização do vídeo.
-          </p>
+    return (
+      <div className="space-y-5">
+        <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
+          <div>
+            <Badge variant="cream">Timeline editável</Badge>
+            <h3 className="mt-3 font-serif text-4xl text-bloom-ink">
+              Editor do Reel
+            </h3>
+            <p className="mt-2 max-w-2xl text-sm leading-6 text-bloom-ink/58">
+              Afina o roteiro, escolhe os assets de cada cena e guarda a
+              timeline antes da renderização do vídeo.
+            </p>
+          </div>
+
+          <div className="rounded-lg border border-bloom-olive/18 bg-bloom-porcelain/80 px-4 py-3">
+            <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
+              Duração estimada
+            </p>
+            <p className="mt-1 font-serif text-3xl text-bloom-ink">
+              {formatDuration(totalDuration)}
+            </p>
+            <p className="text-xs text-bloom-ink/48">
+              Meta do projeto: {projectDuration}s
+            </p>
+          </div>
         </div>
 
-        <div className="rounded-lg border border-bloom-olive/18 bg-bloom-porcelain/80 px-4 py-3">
-          <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
-            Duração estimada
-          </p>
-          <p className="mt-1 font-serif text-3xl text-bloom-ink">
-            {formatDuration(totalDuration)}
-          </p>
-          <p className="text-xs text-bloom-ink/48">
-            Meta do projeto: {projectDuration}s
-          </p>
-        </div>
-      </div>
-
-      {exceedsDuration ? (
-        <StatusMessage
-          tone="warning"
-          message="A duração total ultrapassa a duração definida no projeto."
-        />
-      ) : null}
-
-      {invalidSceneOrders.length > 0 ? (
-        <StatusMessage
-          tone="warning"
-          message={`Cena sem asset válido: ${invalidSceneOrders.join(", ")}.`}
-        />
-      ) : null}
-
-      {success ? <StatusMessage tone="success" message={success} /> : null}
-      {error ? <StatusMessage tone="error" message={error} /> : null}
-
-      <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-        <Card className="space-y-4 p-5">
-          <div className="space-y-2">
-            <label
-              htmlFor="script-title"
-              className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42"
-            >
-              Título sugerido
-            </label>
-            <Input
-              id="script-title"
-              value={draft.title}
-              onChange={(event) =>
-                updateDraftField("title", event.target.value)
-              }
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label
-              htmlFor="script-hook"
-              className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42"
-            >
-              Hook
-            </label>
-            <Textarea
-              id="script-hook"
-              className="min-h-28"
-              value={draft.hook}
-              onChange={(event) => updateDraftField("hook", event.target.value)}
-            />
-          </div>
-
-          <div className="space-y-2">
-            <label
-              htmlFor="script-audio"
-              className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-bloom-ink/42"
-            >
-              <Music2 aria-hidden className="h-4 w-4 text-bloom-olive" />
-              Áudio sugerido
-            </label>
-            <Input
-              id="script-audio"
-              value={draft.audioSuggestion}
-              onChange={(event) =>
-                updateDraftField("audioSuggestion", event.target.value)
-              }
-              placeholder="Instrumental suave, piano leve..."
-            />
-          </div>
-        </Card>
-
-        <Card className="space-y-4 p-5">
-          <div className="space-y-2">
-            <label
-              htmlFor="script-caption"
-              className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42"
-            >
-              Legenda
-            </label>
-            <Textarea
-              id="script-caption"
-              className="min-h-40"
-              value={draft.caption}
-              onChange={(event) =>
-                updateDraftField("caption", event.target.value)
-              }
-            />
-          </div>
-
-          <HashtagEditor
-            value={draft.hashtagsText}
-            hashtags={hashtags}
-            onChange={(value) => updateDraftField("hashtagsText", value)}
+        {isDirty ? (
+          <StatusMessage
+            tone="warning"
+            message="Tens alterações por guardar. Ao gerar o vídeo, o BloomStudio guarda a timeline primeiro."
           />
-        </Card>
-      </div>
+        ) : null}
 
-      <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
-        <div>
-          <h4 className="font-serif text-3xl text-bloom-ink">Cenas</h4>
-          <p className="text-sm text-bloom-ink/52">
-            Uma cena por card, na ordem em que o reel será montado.
-          </p>
-        </div>
-        <Button onClick={addScene} variant="secondary">
-          <Plus aria-hidden className="h-4 w-4" />
-          Adicionar cena
-        </Button>
-      </div>
-
-      <div className="space-y-4">
-        {draft.scenes.map((scene, index) => (
-          <SceneCard
-            key={scene.clientId}
-            scene={scene}
-            sceneIndex={index}
-            sceneCount={draft.scenes.length}
-            assets={assets}
-            onUpdate={(changes) => updateScene(scene.clientId, changes)}
-            onRemove={() => removeScene(scene.clientId)}
-            onMoveUp={() => moveScene(scene.clientId, "up")}
-            onMoveDown={() => moveScene(scene.clientId, "down")}
+        {exceedsDuration ? (
+          <StatusMessage
+            tone="warning"
+            message="A duração total ultrapassa a duração definida no projeto."
           />
-        ))}
-      </div>
+        ) : null}
 
-      <div className="flex justify-end">
-        <Button onClick={saveScript} disabled={isSaving}>
-          {isSaving ? (
-            <Loader2 aria-hidden className="h-4 w-4 animate-spin" />
-          ) : (
-            <Save aria-hidden className="h-4 w-4" />
-          )}
-          Guardar alterações
-        </Button>
+        {invalidSceneOrders.length > 0 ? (
+          <StatusMessage
+            tone="warning"
+            message={`Cena sem asset válido: ${invalidSceneOrders.join(", ")}.`}
+          />
+        ) : null}
+
+        {success ? <StatusMessage tone="success" message={success} /> : null}
+        {error ? <StatusMessage tone="error" message={error} /> : null}
+
+        <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
+          <Card className="space-y-4 p-5">
+            <div className="space-y-2">
+              <label
+                htmlFor="script-title"
+                className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42"
+              >
+                Título sugerido
+              </label>
+              <Input
+                id="script-title"
+                value={draft.title}
+                onChange={(event) =>
+                  updateDraftField("title", event.target.value)
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="script-hook"
+                className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42"
+              >
+                Hook
+              </label>
+              <Textarea
+                id="script-hook"
+                className="min-h-28"
+                value={draft.hook}
+                onChange={(event) =>
+                  updateDraftField("hook", event.target.value)
+                }
+              />
+            </div>
+
+            <div className="space-y-2">
+              <label
+                htmlFor="script-audio"
+                className="flex items-center gap-2 text-xs uppercase tracking-[0.16em] text-bloom-ink/42"
+              >
+                <Music2 aria-hidden className="h-4 w-4 text-bloom-olive" />
+                Áudio sugerido
+              </label>
+              <Input
+                id="script-audio"
+                value={draft.audioSuggestion}
+                onChange={(event) =>
+                  updateDraftField("audioSuggestion", event.target.value)
+                }
+                placeholder="Instrumental suave, piano leve..."
+              />
+            </div>
+          </Card>
+
+          <Card className="space-y-4 p-5">
+            <div className="space-y-2">
+              <label
+                htmlFor="script-caption"
+                className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42"
+              >
+                Legenda
+              </label>
+              <Textarea
+                id="script-caption"
+                className="min-h-40"
+                value={draft.caption}
+                onChange={(event) =>
+                  updateDraftField("caption", event.target.value)
+                }
+              />
+            </div>
+
+            <HashtagEditor
+              value={draft.hashtagsText}
+              hashtags={hashtags}
+              onChange={(value) => updateDraftField("hashtagsText", value)}
+            />
+          </Card>
+        </div>
+
+        <div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-center">
+          <div>
+            <h4 className="font-serif text-3xl text-bloom-ink">Cenas</h4>
+            <p className="text-sm text-bloom-ink/52">
+              Uma cena por card, na ordem em que o reel será montado.
+            </p>
+          </div>
+          <Button onClick={addScene} variant="secondary">
+            <Plus aria-hidden className="h-4 w-4" />
+            Adicionar cena
+          </Button>
+        </div>
+
+        <div className="space-y-4">
+          {draft.scenes.map((scene, index) => (
+            <SceneCard
+              key={scene.clientId}
+              scene={scene}
+              sceneIndex={index}
+              sceneCount={draft.scenes.length}
+              assets={assets}
+              onUpdate={(changes) => updateScene(scene.clientId, changes)}
+              onRemove={() => removeScene(scene.clientId)}
+              onMoveUp={() => moveScene(scene.clientId, "up")}
+              onMoveDown={() => moveScene(scene.clientId, "down")}
+            />
+          ))}
+        </div>
+
+        <div className="flex justify-end">
+          <Button onClick={saveScript} disabled={isSaving || !isDirty}>
+            {isSaving ? (
+              <Loader2 aria-hidden className="h-4 w-4 animate-spin" />
+            ) : (
+              <Save aria-hidden className="h-4 w-4" />
+            )}
+            Guardar alterações
+          </Button>
+        </div>
       </div>
-    </div>
-  );
-}
+    );
+  },
+);
+
+SceneEditor.displayName = "SceneEditor";
 
 function SceneCard({
-  scene,
-  sceneIndex,
-  sceneCount,
   assets,
-  onUpdate,
-  onRemove,
-  onMoveUp,
   onMoveDown,
+  onMoveUp,
+  onRemove,
+  onUpdate,
+  scene,
+  sceneCount,
+  sceneIndex,
 }: {
   scene: EditableScene;
   sceneIndex: number;
@@ -465,7 +515,9 @@ function SceneCard({
             ) : (
               <div className="flex h-full flex-col items-center justify-center gap-3 px-4 text-center text-sm text-bloom-ink/52">
                 <ImageIcon aria-hidden className="h-8 w-8 text-bloom-olive" />
-                Escolhe um asset para esta cena.
+                {assets.length === 0
+                  ? "Adiciona imagens ou vídeos ao projeto para usar nesta cena."
+                  : "Escolhe um asset para esta cena."}
               </div>
             )}
           </div>
@@ -545,7 +597,7 @@ function SceneCard({
                 <option value="">Escolher asset</option>
                 {assets.map((asset, index) => (
                   <option key={asset.id} value={index}>
-                    Asset {index + 1} · {asset.originalName}
+                    {formatAssetOption(asset, index)}
                   </option>
                 ))}
               </Select>
@@ -610,9 +662,9 @@ function SceneCard({
 }
 
 function HashtagEditor({
-  value,
   hashtags,
   onChange,
+  value,
 }: {
   value: string;
   hashtags: string[];
@@ -652,13 +704,13 @@ function HashtagEditor({
 }
 
 function Field({
-  label,
-  htmlFor,
   children,
+  htmlFor,
+  label,
 }: {
   label: string;
   htmlFor: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="space-y-2">
@@ -674,8 +726,8 @@ function Field({
 }
 
 function StatusMessage({
-  tone,
   message,
+  tone,
 }: {
   tone: "success" | "warning" | "error";
   message: string;
@@ -737,7 +789,7 @@ function createEmptyScene(
 }
 
 function createStableSceneId(scene: ReelSceneOutput, index: number) {
-  return `scene-${index + 1}-${scene.order}-${scene.assetIndex}`;
+  return `scene-${index + 1}-${scene.order}`;
 }
 
 function normalizeSceneOrder(scenes: EditableScene[]) {
@@ -757,6 +809,12 @@ function parseHashtags(value: string) {
         .map((hashtag) => (hashtag.startsWith("#") ? hashtag : `#${hashtag}`)),
     ),
   );
+}
+
+function formatAssetOption(asset: SceneEditorAsset, index: number) {
+  const typeLabel = asset.type === "video" ? "vídeo" : "imagem";
+
+  return `#${index + 1} - ${asset.originalName} - ${typeLabel}`;
 }
 
 function formatDuration(duration: number) {
