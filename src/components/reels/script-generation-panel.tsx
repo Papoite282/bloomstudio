@@ -2,29 +2,29 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Clapperboard, Loader2, Music2, Sparkles } from "lucide-react";
+import { Clapperboard, Loader2, Sparkles } from "lucide-react";
 
+import {
+  SceneEditor,
+  type SceneEditorAsset,
+  type SceneEditorScript,
+} from "@/components/SceneEditor";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import type { ReelSceneOutput } from "@/lib/schemas/reelScriptSchema";
 
-export type StoredReelScript = {
-  id: string;
-  title: string;
-  hook: string;
-  scenes: ReelSceneOutput[];
-  caption: string;
-  hashtags: string[];
-  audioSuggestion: string | null;
-  generationSource: "ai" | "local";
-};
+export type StoredReelScript = SceneEditorScript;
+export type StoredMediaAsset = SceneEditorAsset;
 
 export function ScriptGenerationPanel({
   projectId,
+  projectDuration,
+  assets,
   initialScript,
 }: {
   projectId: string;
+  projectDuration: number;
+  assets: StoredMediaAsset[];
   initialScript: StoredReelScript | null;
 }) {
   const router = useRouter();
@@ -64,14 +64,30 @@ export function ScriptGenerationPanel({
     }
   }
 
+  function handleScriptSaved(updatedScript: StoredReelScript) {
+    setScript(updatedScript);
+    router.refresh();
+  }
+
   return (
-    <section className="space-y-4">
+    <section className="space-y-5">
       <div className="flex flex-col justify-between gap-4 md:flex-row md:items-end">
         <div>
           <Badge variant="cream">Roteiro</Badge>
           <h2 className="mt-3 font-serif text-4xl text-bloom-ink">
             Roteiro do reel
           </h2>
+          {script ? (
+            <div className="mt-3">
+              <Badge
+                variant={script.generationSource === "ai" ? "dark" : "olive"}
+              >
+                {script.generationSource === "ai"
+                  ? "Gerado com IA"
+                  : "Gerado localmente"}
+              </Badge>
+            </div>
+          ) : null}
         </div>
         <div className="flex flex-wrap gap-3">
           <Button onClick={generateScript} disabled={isGenerating}>
@@ -108,109 +124,14 @@ export function ScriptGenerationPanel({
           </p>
         </Card>
       ) : (
-        <div className="space-y-4">
-          <Card className="space-y-4 p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div>
-                <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
-                  Título sugerido
-                </p>
-                <h3 className="mt-2 font-serif text-3xl text-bloom-ink">
-                  {script.title}
-                </h3>
-              </div>
-              <Badge
-                variant={script.generationSource === "ai" ? "dark" : "olive"}
-              >
-                {script.generationSource === "ai"
-                  ? "Gerado com IA"
-                  : "Gerado localmente"}
-              </Badge>
-            </div>
-          </Card>
-
-          <div className="grid gap-4 xl:grid-cols-[0.85fr_1.15fr]">
-            <Card className="space-y-3 p-5">
-              <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
-                Hook
-              </p>
-              <p className="font-serif text-3xl leading-tight text-bloom-ink">
-                {script.hook}
-              </p>
-            </Card>
-
-            <Card className="space-y-4 p-5">
-              <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
-                Timeline
-              </p>
-              <div className="space-y-3">
-                {script.scenes.map((scene) => (
-                  <div
-                    key={`${scene.order}-${scene.assetIndex}`}
-                    className="rounded-lg border border-bloom-olive/14 bg-bloom-cream/55 p-4"
-                  >
-                    <div className="flex flex-wrap items-center gap-2">
-                      <Badge variant="cream">Cena {scene.order}</Badge>
-                      <span className="text-xs text-bloom-ink/48">
-                        {scene.duration}s · asset {scene.assetIndex + 1} ·{" "}
-                        {formatMotion(scene.motion)}
-                      </span>
-                    </div>
-                    <p className="mt-3 text-sm font-medium text-bloom-ink">
-                      {scene.onScreenText}
-                    </p>
-                    <p className="mt-2 text-sm leading-6 text-bloom-ink/62">
-                      {scene.notes}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Card>
-          </div>
-
-          <div className="grid gap-4 lg:grid-cols-3">
-            <Card className="space-y-3 p-5 lg:col-span-2">
-              <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
-                Legenda
-              </p>
-              <p className="whitespace-pre-wrap text-sm leading-7 text-bloom-ink/70">
-                {script.caption}
-              </p>
-            </Card>
-
-            <div className="space-y-4">
-              <Card className="space-y-3 p-5">
-                <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
-                  Hashtags
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {script.hashtags.map((hashtag) => (
-                    <Badge key={hashtag} variant="cream">
-                      {hashtag}
-                    </Badge>
-                  ))}
-                </div>
-              </Card>
-
-              <Card className="space-y-3 p-5">
-                <div className="flex items-center gap-2">
-                  <Music2 aria-hidden className="h-4 w-4 text-bloom-olive" />
-                  <p className="text-xs uppercase tracking-[0.16em] text-bloom-ink/42">
-                    Áudio sugerido
-                  </p>
-                </div>
-                <p className="text-sm leading-6 text-bloom-ink/70">
-                  {script.audioSuggestion}
-                </p>
-              </Card>
-            </div>
-          </div>
-        </div>
+        <SceneEditor
+          projectId={projectId}
+          projectDuration={projectDuration}
+          assets={assets}
+          script={script}
+          onScriptSaved={handleScriptSaved}
+        />
       )}
     </section>
   );
-}
-
-function formatMotion(motion: string) {
-  return motion.replaceAll("_", " ");
 }

@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, CalendarDays, Film, ImageIcon } from "lucide-react";
-import type { ReelScript } from "@prisma/client";
+import type { MediaAsset, ReelScript } from "@prisma/client";
 
 import {
   ScriptGenerationPanel,
+  type StoredMediaAsset,
   type StoredReelScript,
 } from "@/components/reels/script-generation-panel";
 import { Badge } from "@/components/ui/badge";
@@ -85,6 +86,8 @@ export default async function ReelDetailsPage({
 
       <ScriptGenerationPanel
         projectId={project.id}
+        projectDuration={project.duration}
+        assets={serializeAssets(project.mediaAssets)}
         initialScript={serializeScript(project.script)}
       />
 
@@ -192,6 +195,15 @@ function Metric({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-sm font-medium text-bloom-ink">{value}</p>
     </Card>
   );
+}
+
+function serializeAssets(assets: MediaAsset[]): StoredMediaAsset[] {
+  return assets.map((asset) => ({
+    id: asset.id,
+    type: asset.type,
+    originalName: asset.originalName,
+    order: asset.order,
+  }));
 }
 
 function serializeScript(script: ReelScript | null): StoredReelScript | null {

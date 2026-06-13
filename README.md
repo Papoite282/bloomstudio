@@ -49,6 +49,22 @@ A chave fica apenas no backend, não é enviada para o frontend e não é guarda
 5. Cria o projeto para abrir automaticamente a página de detalhe do reel.
 6. Na página do projeto, usa `Gerar roteiro com IA` para criar hook, cenas, legenda, hashtags e sugestão de áudio.
 
+## Gerar e editar o roteiro
+
+Na página de detalhe de cada projeto, usa `Gerar roteiro com IA` para criar uma primeira versão do roteiro. O resultado inclui título sugerido, hook, timeline de cenas, legenda, hashtags e sugestão de áudio.
+
+Depois de existir um roteiro, a área `Editor do Reel` permite ajustar a timeline antes da renderização:
+
+- edita o título sugerido, hook, legenda, hashtags e sugestão de áudio;
+- escolhe o asset usado em cada cena;
+- altera duração, texto no ecrã, movimento e notas;
+- adiciona, remove e reordena cenas;
+- acompanha a duração total estimada do reel.
+
+Usa `Guardar alterações` para persistir a timeline editada na base de dados local. Recarrega a página do projeto para confirmar que as alterações continuam guardadas.
+
+A renderização de vídeo será adicionada numa fase seguinte.
+
 ## Base de Dados
 
 O projeto usa SQLite em desenvolvimento. A base local fica em `prisma/dev.db` e é criada automaticamente durante `npm install` caso ainda não exista.
