@@ -186,10 +186,13 @@ async function renderScene({
   const textFilter = buildTextFilter(textFilePath, fontFilePath);
   const filter = `${transformFilter},${textFilter},format=yuv420p`;
   const duration = formatDurationArgument(scene.duration);
+  const frameCount = String(Math.max(1, Math.round(scene.duration * FPS)));
   const inputArgs =
     asset.type === "image"
-      ? ["-loop", "1", "-t", duration, "-i", inputPath]
+      ? ["-loop", "1", "-i", inputPath]
       : ["-i", inputPath, "-t", duration];
+  const frameLimitArgs =
+    asset.type === "image" ? ["-frames:v", frameCount] : [];
 
   await runFfmpeg(
     [
@@ -200,6 +203,7 @@ async function renderScene({
       filter,
       "-r",
       String(FPS),
+      ...frameLimitArgs,
       "-c:v",
       "libx264",
       "-preset",
@@ -225,6 +229,7 @@ function buildImageTransformFilter(scene: ReelSceneOutput) {
       `scale=${WIDTH * 2}:${HEIGHT * 2}:force_original_aspect_ratio=increase`,
       `zoompan=z='min(zoom+0.0015\\,1.12)':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${RESOLUTION}:fps=${FPS}`,
       "setsar=1",
+      "setpts=PTS-STARTPTS",
     ].join(",");
   }
 
@@ -233,6 +238,7 @@ function buildImageTransformFilter(scene: ReelSceneOutput) {
       `scale=${WIDTH * 2}:${HEIGHT * 2}:force_original_aspect_ratio=increase`,
       `zoompan=z='if(eq(on\\,0)\\,1.12\\,max(1\\,zoom-0.0015))':d=${frames}:x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':s=${RESOLUTION}:fps=${FPS}`,
       "setsar=1",
+      "setpts=PTS-STARTPTS",
     ].join(",");
   }
 
@@ -245,6 +251,7 @@ function buildImageTransformFilter(scene: ReelSceneOutput) {
       `crop=${WIDTH}:${HEIGHT}:x='(iw-ow)/2':y='(ih-oh)*${progress}'`,
       "setsar=1",
       `fps=${FPS}`,
+      "setpts=PTS-STARTPTS",
     ].join(",");
   }
 
@@ -257,6 +264,7 @@ function buildVideoTransformFilter() {
     `crop=${WIDTH}:${HEIGHT}`,
     "setsar=1",
     `fps=${FPS}`,
+    "setpts=PTS-STARTPTS",
   ].join(",");
 }
 

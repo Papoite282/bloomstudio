@@ -703,11 +703,11 @@ function createDraft(
 ): DraftScript {
   const scenes =
     script.scenes.length > 0
-      ? script.scenes.map((scene) => ({
+      ? script.scenes.map((scene, index) => ({
           ...scene,
-          clientId: createClientId(),
+          clientId: createStableSceneId(scene, index),
         }))
-      : [createEmptyScene(assets, 1, 15)];
+      : [createEmptyScene(assets, 1, 15, "scene-empty-1")];
 
   return {
     title: script.title,
@@ -723,9 +723,10 @@ function createEmptyScene(
   assets: SceneEditorAsset[],
   order: number,
   projectDuration: number,
+  clientId = createClientId(),
 ): EditableScene {
   return {
-    clientId: createClientId(),
+    clientId,
     order,
     duration: Math.max(1, Math.min(3, projectDuration)),
     assetIndex: assets.length > 0 ? 0 : -1,
@@ -733,6 +734,10 @@ function createEmptyScene(
     motion: "static",
     notes: "",
   };
+}
+
+function createStableSceneId(scene: ReelSceneOutput, index: number) {
+  return `scene-${index + 1}-${scene.order}-${scene.assetIndex}`;
 }
 
 function normalizeSceneOrder(scenes: EditableScene[]) {
