@@ -63,7 +63,36 @@ Depois de existir um roteiro, a área `Editor do Reel` permite ajustar a timelin
 
 Usa `Guardar alterações` para persistir a timeline editada na base de dados local. Recarrega a página do projeto para confirmar que as alterações continuam guardadas.
 
-A renderização de vídeo será adicionada numa fase seguinte.
+## Gerar vídeo local
+
+BloomStudio renderiza o reel localmente com FFmpeg. Os ficheiros não são enviados para cloud.
+
+No Windows, instala o FFmpeg a partir de uma fonte oficial ou através de um gestor de pacotes como Winget:
+
+```powershell
+winget install Gyan.FFmpeg
+```
+
+Depois fecha e volta a abrir o terminal, e confirma que o comando está disponível:
+
+```bash
+ffmpeg -version
+```
+
+Para gerar o vídeo:
+
+1. Abre um projeto em `http://localhost:3000/reels`.
+2. Confirma que existem assets e um roteiro guardado.
+3. Ajusta a timeline no `Editor do Reel`.
+4. Usa `Guardar alterações`.
+5. Clica em `Gerar vídeo`.
+6. Quando o export terminar, usa o player HTML5 ou `Download MP4`.
+
+Os vídeos exportados ficam em `storage/exports/{reelProjectId}/final.mp4`. Os ficheiros temporários ficam em `storage/tmp/{reelProjectId}/` durante a renderização e são limpos no fim sempre que possível.
+
+Quando a timeline usa vídeos carregados, o BloomStudio limita a duração da cena, adapta o enquadramento para 1080x1920 e remove o áudio nesta fase.
+
+Os exports de vídeo ficam fora do Git.
 
 ## Base de Dados
 

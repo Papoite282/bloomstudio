@@ -42,6 +42,7 @@ dev-server.*.log
 # local media storage
 /storage/uploads/*
 /storage/exports/*
+/storage/tmp/*
 !/storage/.gitkeep
 
 # generated prisma client
