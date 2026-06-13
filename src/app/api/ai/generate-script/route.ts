@@ -3,6 +3,7 @@ import type { BrandProfile, MediaAsset, ReelProject } from "@prisma/client";
 import { zodResponseFormat } from "openai/helpers/zod";
 import { z } from "zod";
 
+import { DEFAULT_BRAND_PROFILE } from "@/lib/brand-profile";
 import { createFallbackReelScript } from "@/lib/fallback-reel-script";
 import { getOpenAIClient, getOpenAIModel } from "@/lib/openai";
 import { buildReelPrompt } from "@/lib/prompts/reelPrompt";
@@ -19,6 +20,17 @@ const requestSchema = z.object({
 });
 
 type GenerationSource = "ai" | "local";
+type GenerationAttempt =
+  | {
+      script: ReelScriptOutput;
+      source: "ai";
+      notice: null;
+    }
+  | {
+      script: null;
+      source: "local";
+      notice: string;
+    };
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
@@ -54,16 +66,13 @@ export async function POST(request: Request) {
     );
   }
 
-  const brandProfile = await prisma.brandProfile.findFirst({
-    where: { name: "Bloommere" },
-  });
-
-  if (!brandProfile) {
-    return NextResponse.json(
-      { error: "Perfil de marca Bloommere não encontrado." },
-      { status: 500 },
-    );
-  }
+  const brandProfile =
+    (await prisma.brandProfile.findFirst({
+      orderBy: { createdAt: "asc" },
+    })) ??
+    (await prisma.brandProfile.create({
+      data: DEFAULT_BRAND_PROFILE,
+    }));
 
   await prisma.reelProject.update({
     where: { id: project.id },
@@ -76,9 +85,12 @@ export async function POST(request: Request) {
       project,
       mediaAssets: project.mediaAssets,
     });
-
-    const script = generated?.script
-      ? generated
+    const script = generated.script
+      ? {
+          script: generated.script,
+          source: generated.source,
+          notice: null,
+        }
       : {
           script: createFallbackReelScript({
             brandProfile,
@@ -86,6 +98,7 @@ export async function POST(request: Request) {
             mediaAssets: project.mediaAssets,
           }),
           source: "local" as GenerationSource,
+          notice: generated.notice,
         };
 
     const savedScript = await prisma.reelScript.upsert({
@@ -128,6 +141,7 @@ export async function POST(request: Request) {
         scenes: script.script.scenes,
         generationSource: savedScript.generationSource as GenerationSource,
       },
+      notice: script.notice,
     });
   } catch (error) {
     await prisma.reelProject.update({
@@ -155,11 +169,16 @@ async function generateWithOpenAI({
   brandProfile: BrandProfile;
   project: ReelProject;
   mediaAssets: MediaAsset[];
-}): Promise<{ script: ReelScriptOutput; source: GenerationSource } | null> {
+}): Promise<GenerationAttempt> {
   const client = getOpenAIClient();
 
   if (!client) {
-    return null;
+    return {
+      script: null,
+      source: "local",
+      notice:
+        "Sem chave de API configurada; o BloomStudio usou o fallback local.",
+    };
   }
 
   try {
@@ -186,14 +205,49 @@ async function generateWithOpenAI({
     const parsedScript = completion.choices[0]?.message.parsed;
 
     if (!parsedScript) {
-      return null;
+      return {
+        script: null,
+        source: "local",
+        notice:
+          "A geração externa não devolveu um roteiro válido; o BloomStudio usou o fallback local.",
+      };
     }
 
     return {
       script: reelScriptSchema.parse(parsedScript),
       source: "ai",
+      notice: null,
     };
-  } catch {
-    return null;
+  } catch (error) {
+    return {
+      script: null,
+      source: "local",
+      notice: getOpenAIFallbackNotice(error),
+    };
   }
+}
+
+function getOpenAIFallbackNotice(error: unknown) {
+  const details =
+    typeof error === "object" && error
+      ? (error as { code?: unknown; status?: unknown; type?: unknown })
+      : null;
+  const code = String(details?.code ?? "").toLowerCase();
+  const type = String(details?.type ?? "").toLowerCase();
+  const status =
+    typeof details?.status === "number" ? details.status : undefined;
+
+  if (status === 429 || code.includes("quota") || type.includes("quota")) {
+    return "A API externa respondeu sem quota disponível; o BloomStudio usou o fallback local.";
+  }
+
+  if (status === 401 || status === 403) {
+    return "A chave da API externa não foi aceite; o BloomStudio usou o fallback local.";
+  }
+
+  if (status === 400 || status === 404) {
+    return "O modelo configurado não respondeu como esperado; o BloomStudio usou o fallback local.";
+  }
+
+  return "A geração externa falhou temporariamente; o BloomStudio usou o fallback local.";
 }

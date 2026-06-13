@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma";
 import {
   DURATION_OPTIONS,
   LANGUAGE_OPTIONS,
+  MAX_FILES_PER_PROJECT,
   OBJECTIVE_OPTIONS,
   STYLE_OPTIONS,
   TEMPLATE_OPTIONS,
@@ -150,6 +151,12 @@ function validateReelForm(
 
   if (files.length === 0) {
     return { error: "Adiciona pelo menos uma imagem ou vídeo." };
+  }
+
+  if (files.length > MAX_FILES_PER_PROJECT) {
+    return {
+      error: `Seleciona no máximo ${MAX_FILES_PER_PROJECT} ficheiros por projeto.`,
+    };
   }
 
   for (const file of files) {

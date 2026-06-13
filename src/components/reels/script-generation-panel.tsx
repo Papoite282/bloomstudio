@@ -52,8 +52,14 @@ export function ScriptGenerationPanel({
   const [isGenerating, setIsGenerating] = useState(false);
   const [isRendering, setIsRendering] = useState(false);
   const [error, setError] = useState("");
+  const [generationNotice, setGenerationNotice] = useState(
+    initialScript?.generationSource === "local"
+      ? "Este roteiro foi criado localmente para manter o fluxo criativo disponível."
+      : "",
+  );
   const [renderError, setRenderError] = useState("");
   const [renderSuccess, setRenderSuccess] = useState("");
+  const canGenerate = assets.length > 0;
   const canRender = Boolean(
     script &&
     script.scenes.length > 0 &&
@@ -67,6 +73,7 @@ export function ScriptGenerationPanel({
   async function generateScript() {
     setIsGenerating(true);
     setError("");
+    setGenerationNotice("");
 
     try {
       const response = await fetch("/api/ai/generate-script", {
@@ -79,6 +86,7 @@ export function ScriptGenerationPanel({
       const data = (await response.json().catch(() => null)) as {
         script?: StoredReelScript;
         error?: string;
+        notice?: string | null;
       } | null;
 
       if (!response.ok || !data?.script) {
@@ -88,6 +96,12 @@ export function ScriptGenerationPanel({
       }
 
       setScript(data.script);
+      setGenerationNotice(
+        data.notice ??
+          (data.script.generationSource === "local"
+            ? "Este roteiro foi criado localmente para manter o fluxo criativo disponível."
+            : ""),
+      );
       router.refresh();
     } catch {
       setError("Não foi possível gerar o roteiro. Tenta novamente.");
@@ -100,6 +114,7 @@ export function ScriptGenerationPanel({
     setScript(updatedScript);
     setRenderError("");
     setRenderSuccess("");
+    setGenerationNotice("");
     router.refresh();
   }
 
@@ -164,7 +179,15 @@ export function ScriptGenerationPanel({
           ) : null}
         </div>
         <div className="flex flex-wrap gap-3">
-          <Button onClick={generateScript} disabled={isGenerating}>
+          <Button
+            onClick={generateScript}
+            disabled={!canGenerate || isGenerating}
+            title={
+              canGenerate
+                ? "Gerar roteiro com apoio externo ou fallback local"
+                : "Adiciona pelo menos um asset antes de gerar o roteiro"
+            }
+          >
             {isGenerating ? (
               <Loader2 aria-hidden className="h-4 w-4 animate-spin" />
             ) : (
@@ -198,12 +221,17 @@ export function ScriptGenerationPanel({
         </div>
       ) : null}
 
+      {generationNotice ? (
+        <StatusMessage tone="info" message={generationNotice} />
+      ) : null}
+
       {!script ? (
         <Card className="p-6">
           <p className="max-w-2xl text-sm leading-6 text-bloom-ink/62">
             Gera um roteiro inicial com hook, timeline, legenda, hashtags e
-            sugestão de áudio. Se não houver chave de API configurada, o
-            BloomStudio usa um fallback local para manter o fluxo criativo.
+            sugestão de áudio. Se a API externa não estiver configurada,
+            disponível ou com quota, o BloomStudio usa fallback local para
+            manter o fluxo criativo.
           </p>
         </Card>
       ) : (

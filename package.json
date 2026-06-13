@@ -8,6 +8,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
+    "prisma:seed": "prisma db seed",
+    "prisma:studio": "prisma studio",
     "format": "prettier --write .",
     "format:check": "prettier --check ."
   },

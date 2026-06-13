@@ -8,6 +8,7 @@ import {
   useRef,
   useState,
 } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import {
   ArrowRight,
@@ -19,7 +20,7 @@ import {
   X,
 } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { Button, buttonStyles } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/ui/select";
@@ -27,6 +28,7 @@ import {
   ACCEPTED_FILE_INPUT,
   DURATION_OPTIONS,
   LANGUAGE_OPTIONS,
+  MAX_FILES_PER_PROJECT,
   OBJECTIVE_OPTIONS,
   STYLE_OPTIONS,
   TEMPLATE_OPTIONS,
@@ -85,7 +87,11 @@ export function NewReelForm() {
   function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
     const selectedFiles = Array.from(event.target.files ?? []);
 
-    setError("");
+    setError(
+      selectedFiles.length > MAX_FILES_PER_PROJECT
+        ? `Seleciona no máximo ${MAX_FILES_PER_PROJECT} ficheiros por projeto.`
+        : "",
+    );
     setPreviews((currentPreviews) => {
       currentPreviews.forEach((preview) => URL.revokeObjectURL(preview.url));
 
@@ -137,6 +143,13 @@ export function NewReelForm() {
 
     if (previews.length === 0) {
       setError("Adiciona pelo menos uma imagem ou vídeo.");
+      return;
+    }
+
+    if (previews.length > MAX_FILES_PER_PROJECT) {
+      setError(
+        `Seleciona no máximo ${MAX_FILES_PER_PROJECT} ficheiros por projeto.`,
+      );
       return;
     }
 
@@ -399,9 +412,12 @@ export function NewReelForm() {
         ) : null}
 
         <div className="flex flex-wrap justify-end gap-3">
-          <Button variant="secondary" disabled={isSubmitting}>
-            Guardar rascunho
-          </Button>
+          <Link
+            href="/reels"
+            className={buttonStyles({ variant: "secondary" })}
+          >
+            Ver biblioteca
+          </Link>
           <Button type="submit" disabled={isSubmitting}>
             {isSubmitting ? (
               <Loader2 aria-hidden className="h-4 w-4 animate-spin" />

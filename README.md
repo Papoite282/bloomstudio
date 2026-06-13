@@ -6,7 +6,7 @@ O produto junta upload de media, direção criativa da marca, geração de rotei
 
 ## Problema
 
-Artistas independentes precisam transformar fotografias, vídeos de processo, mockups e detalhes da sua obra em reels consistentes sem depender de ferramentas pesadas, dispersas ou demasiado comerciais. BloomStudio resolve esse fluxo localmente, com uma estética suave e com apoio opcional de IA para acelerar ideias sem perder a voz da marca.
+Artistas independentes precisam transformar fotografias, vídeos de processo, mockups e detalhes da sua obra em reels consistentes sem depender de ferramentas pesadas, dispersas ou demasiado comerciais. BloomStudio organiza esse processo localmente e mantém a voz visual da marca durante todo o fluxo.
 
 ## Funcionalidades
 
@@ -14,9 +14,9 @@ Artistas independentes precisam transformar fotografias, vídeos de processo, mo
 - Biblioteca de projetos de reels com estados claros.
 - Wizard para criar reels com objetivo, estilo, template, duração, idioma e uploads.
 - Perfil de marca editável para orientar tom, cores, público e palavras a evitar.
-- Templates criativos premium para arte botânica, sketchbook, processo e promoção suave de prints.
+- Templates criativos para arte botânica, sketchbook, processo e promoção suave de prints.
 - Geração de roteiro com hook, título sugerido, cenas, legenda, hashtags e sugestão de áudio.
-- Fallback local quando a API externa não está disponível.
+- Fallback local quando a API externa não está configurada, sem quota ou temporariamente indisponível.
 - Editor de timeline com cenas, assets, duração, movimento, texto no ecrã e notas.
 - Renderização local de vídeo vertical em MP4 com FFmpeg.
 - Player HTML5 e download do ficheiro final.
@@ -32,6 +32,23 @@ Artistas independentes precisam transformar fotografias, vídeos de processo, mo
 - ESLint
 - Prettier
 
+## Arquitetura
+
+- `src/app/` contém páginas e API routes.
+- `src/components/` contém a UI reutilizável e os fluxos de reels.
+- `src/lib/` concentra Prisma, prompts, templates, upload local, OpenAI e renderização.
+- `prisma/` contém schema, migrations e seed.
+- `storage/` é usado apenas localmente para uploads, temporários e exports.
+
+## Screenshots
+
+Adiciona capturas reais quando preparares a apresentação pública:
+
+- Dashboard com métricas e fluxo criativo.
+- Wizard de criação de reel.
+- Página de detalhe com roteiro, timeline e export.
+- Settings da marca.
+
 ## Fluxo da App
 
 1. Define ou ajusta o perfil da marca em `/settings/brand`.
@@ -42,51 +59,84 @@ Artistas independentes precisam transformar fotografias, vídeos de processo, mo
 6. Edita a timeline e guarda as alterações.
 7. Exporta o vídeo final em MP4.
 
-## Como Correr Localmente
+## Setup Local
+
+Instala dependências:
 
 ```bash
 npm install
+```
+
+Cria o ficheiro de ambiente:
+
+```bash
+cp .env.example .env
+```
+
+No Windows PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+```
+
+Aplica migrations e seed:
+
+```bash
 npx prisma migrate dev
 npx prisma db seed
+```
+
+Confirma FFmpeg, se quiseres exportar MP4:
+
+```bash
+ffmpeg -version
+```
+
+Arranca a app:
+
+```bash
 npm run dev
 ```
 
 A aplicação fica disponível em `http://localhost:3000`.
 
-## Base de Dados
-
-O projeto usa SQLite em desenvolvimento. Para aplicar migrations:
-
-```bash
-npx prisma migrate dev
-```
-
-Para executar o seed inicial da marca:
-
-```bash
-npx prisma db seed
-```
-
-Para abrir o Prisma Studio:
-
-```bash
-npx prisma studio
-```
-
-## Configuração OpenAI
-
-BloomStudio pode gerar roteiros com uma API externa compatível com OpenAI. Cria um ficheiro `.env` a partir de `.env.example` e define:
+## Variáveis de Ambiente
 
 ```env
 OPENAI_API_KEY=
 OPENAI_MODEL=
 ```
 
-A chave é usada apenas no backend. Sem chave válida, sem quota ou perante erro temporário, BloomStudio continua funcional através do fallback local.
+`OPENAI_API_KEY` é opcional. Sem chave válida, sem quota ou perante erro temporário, BloomStudio usa fallback local e continua funcional.
 
-## Fallback Local
+`OPENAI_MODEL` é opcional. Define um modelo disponível na tua conta quando quiseres usar geração externa de roteiros.
 
-O fallback local cria um roteiro baseado no projeto, assets, template escolhido e BrandProfile. Também respeita o tom da marca, o idioma, as cores, o público e a lista de palavras a evitar.
+## Prisma
+
+Aplicar migrations:
+
+```bash
+npx prisma migrate dev
+```
+
+Executar seed:
+
+```bash
+npx prisma db seed
+```
+
+Abrir Prisma Studio:
+
+```bash
+npx prisma studio
+```
+
+Também podes usar:
+
+```bash
+npm run prisma:seed
+npm run prisma:studio
+```
 
 ## FFmpeg
 
@@ -102,14 +152,37 @@ Depois confirma:
 ffmpeg -version
 ```
 
+Se FFmpeg não estiver disponível, a app mostra uma mensagem amigável e mantém o projeto guardado.
+
 ## Segurança e Armazenamento Local
 
 - `.env` fica fora do Git.
 - Uploads ficam em `storage/uploads/`.
 - Exports ficam em `storage/exports/`.
 - Ficheiros temporários ficam em `storage/tmp/`.
-- Os ficheiros gerados permanecem locais e não são enviados para cloud.
+- A base SQLite local fica fora do Git.
+- Ficheiros gerados permanecem locais e não são enviados para cloud.
 - Chaves de API não são expostas no frontend nem guardadas na base de dados.
+- As rotas de media e export resolvem ficheiros apenas dentro de `storage/`.
+
+## Comandos Úteis
+
+```bash
+npm run dev
+npm run lint
+npm run build
+npm run start
+npm run prisma:seed
+npm run prisma:studio
+```
+
+## Limitações Conhecidas
+
+- A edição de vídeo é local e depende de FFmpeg instalado.
+- Uploads e exports não são sincronizados entre máquinas.
+- O fallback local gera roteiros úteis, mas menos variados do que uma geração externa.
+- A app não inclui autenticação nesta fase.
+- O export atual é focado em MP4 vertical 1080x1920.
 
 ## Roadmap
 
@@ -118,6 +191,7 @@ ffmpeg -version
 - Pré-visualização de timeline antes do render final.
 - Export de múltiplos formatos sociais.
 - Arquivo de legendas e hashtags favoritas.
+- Gestão de projetos demo sem assets reais.
 
 ## Repositório
 

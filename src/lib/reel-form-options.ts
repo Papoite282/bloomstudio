@@ -20,6 +20,7 @@ export const STYLE_OPTIONS = [
 
 export const DURATION_OPTIONS = [7, 10, 15, 20, 30] as const;
 export const LANGUAGE_OPTIONS = ["pt", "en"] as const;
+export const MAX_FILES_PER_PROJECT = 12;
 
 export const ACCEPTED_FILE_EXTENSIONS = [
   "jpg",
